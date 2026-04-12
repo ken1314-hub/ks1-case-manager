@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { db } from "./firebase";
+import { db, auth, googleProvider } from "./firebase";
 import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from "firebase/firestore";
+import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
 const CK = "ks1-cases";
 const SK = "ks1-seminars";
@@ -231,10 +232,24 @@ function SemMod(){
 }
 
 export default function App(){
-  const[app,sA]=useState("cases");const[dp,sD]=useState(false);
+  const[user,sU]=useState(null);const[loading,sL]=useState(true);const[app,sA]=useState("cases");const[dp,sD]=useState(false);
+  useEffect(()=>{const unsub=onAuthStateChanged(auth,u=>{sU(u);sL(false)});return unsub},[]);
+  if(loading)return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#F5F7FA,#EEF1F5)",fontFamily:"'Noto Sans JP',sans-serif"}}><div style={{color:"#90A4AE",fontSize:16}}>読み込み中…</div></div>;
+  if(!user)return <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(160deg,#F5F7FA,#EEF1F5)",fontFamily:"'Noto Sans JP','DM Sans',sans-serif"}}>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <div style={{background:"#fff",borderRadius:20,padding:"48px 40px",textAlign:"center",boxShadow:"0 8px 32px rgba(0,0,0,.08)",maxWidth:400,width:"90%"}}>
+      <div style={{fontSize:11,fontWeight:600,color:"rgba(26,42,58,.4)",letterSpacing:".12em",marginBottom:8}}>KS One Investment</div>
+      <h1 style={{fontSize:24,fontWeight:800,color:"#1A2A3A",margin:"0 0 8px"}}>案件マネージャー</h1>
+      <p style={{fontSize:14,color:"#90A4AE",marginBottom:32}}>ログインして続けてください</p>
+      <button onClick={()=>signInWithPopup(auth,googleProvider)} style={{background:"#1A2A3A",color:"#fff",border:"none",borderRadius:12,padding:"14px 32px",fontSize:15,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:10}}>
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#4285F4" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#34A853" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 010-9.18l-7.98-6.19a24.08 24.08 0 000 21.56l7.98-6.19z"/><path fill="#EA4335" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Googleでログイン
+      </button>
+    </div>
+  </div>;
   return <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#F5F7FA,#EEF1F5)",fontFamily:"'Noto Sans JP','DM Sans',sans-serif"}}>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-    <div style={{maxWidth:720,margin:"0 auto",padding:"16px 16px 0"}}><div style={{display:"flex",gap:8,alignItems:"center"}}>{[{k:"cases",l:"案件管理",e:"📋",bg:"#1A2A3A"},{k:"seminars",l:"セミナー管理",e:"🎤",bg:"#4527A0"}].map(t=><button key={t.k} onClick={()=>sA(t.k)} style={{flex:1,padding:"12px 16px",borderRadius:14,border:app===t.k?"2px solid "+t.bg:"2px solid transparent",background:app===t.k?t.bg:"#fff",color:app===t.k?"#fff":"#78909C",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span style={{fontSize:18}}>{t.e}</span>{t.l}</button>)}<button onClick={()=>sD(true)} style={{width:48,height:48,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:20}}>⬇</button></div></div>
+    <div style={{maxWidth:720,margin:"0 auto",padding:"16px 16px 0"}}><div style={{display:"flex",gap:8,alignItems:"center"}}>{[{k:"cases",l:"案件管理",e:"📋",bg:"#1A2A3A"},{k:"seminars",l:"セミナー管理",e:"🎤",bg:"#4527A0"}].map(t=><button key={t.k} onClick={()=>sA(t.k)} style={{flex:1,padding:"12px 16px",borderRadius:14,border:app===t.k?"2px solid "+t.bg:"2px solid transparent",background:app===t.k?t.bg:"#fff",color:app===t.k?"#fff":"#78909C",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span style={{fontSize:18}}>{t.e}</span>{t.l}</button>)}<button onClick={()=>sD(true)} style={{width:48,height:48,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:20}}>⬇</button><button onClick={()=>signOut(auth)} title="ログアウト" style={{width:48,height:48,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:16}}>🚪</button></div></div>
     {app==="cases"&&<CaseMod/>}
     {app==="seminars"&&<SemMod/>}
     <Md open={dp} onClose={()=>sD(false)}><DataP onClose={()=>sD(false)}/></Md>
