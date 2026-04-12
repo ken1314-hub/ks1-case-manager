@@ -1,7 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { db } from "./firebase";
+import { collection, onSnapshot, doc, setDoc, deleteDoc, getDocs } from "firebase/firestore";
 
 const CK = "ks1-cases";
 const SK = "ks1-seminars";
+const collMap = {"ks1-cases": "cases", "ks1-seminars": "seminars"};
 const STS = ["検討中","仮予約","進行中","確認待ち","完了","保留"];
 const SC = {"検討中":{bg:"#FFF3E0",t:"#E65100",d:"#FF9800"},"仮予約":{bg:"#E0F7FA",t:"#006064",d:"#00ACC1"},"進行中":{bg:"#E3F2FD",t:"#0D47A1",d:"#2196F3"},"確認待ち":{bg:"#FFF8E1",t:"#F57F17",d:"#FFC107"},"完了":{bg:"#E8F5E9",t:"#1B5E20",d:"#4CAF50"},"保留":{bg:"#F3E5F5",t:"#4A148C",d:"#9C27B0"}};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -12,7 +15,34 @@ const fn=v=>{const n=String(v||"").replace(/[^\d]/g,"");return n?Number(n).toLoc
 const ci=(a,t)=>{if(a<=0)return 0;if(t==="取材編")return Math.round(125000+(a*0.8-170000)*0.265);if(t==="社長出演編")return Math.round(115000+(a*0.8-150000)*0.29);return 0};
 const is={width:"100%",padding:"10px 14px",border:"1.5px solid #CFD8DC",borderRadius:10,fontSize:14,fontFamily:"'Noto Sans JP',sans-serif",outline:"none",boxSizing:"border-box",background:"#FAFAFA"};
 
-function useSt(key){const[d,sD]=useState([]);const[ok,sO]=useState(false);useEffect(()=>{try{const v=localStorage.getItem(key);if(v)sD(JSON.parse(v))}catch(e){}sO(true)},[]);useEffect(()=>{if(!ok)return;try{localStorage.setItem(key,JSON.stringify(d))}catch(e){}},[d,ok]);return[d,sD,ok]}
+function useSt(key){
+  const[d,sD]=useState([]);const[ok,sO]=useState(false);const ref=useRef(d);
+  useEffect(()=>{
+    const collName=collMap[key]||key;
+    const unsub=onSnapshot(collection(db,collName),snap=>{
+      const items=snap.docs.map(d=>({...d.data(),id:d.id}));
+      ref.current=items;sD(items);sO(true);
+    });
+    return unsub;
+  },[]);
+  const setData=useCallback((updater)=>{
+    const prev=ref.current;
+    const next=typeof updater==='function'?updater(prev):updater;
+    ref.current=next;sD(next);
+    const collName=collMap[key]||key;
+    const prevMap=new Map(prev.map(i=>[i.id,i]));
+    const nextMap=new Map(next.map(i=>[i.id,i]));
+    for(const[id,item]of nextMap){
+      if(!prevMap.has(id)||JSON.stringify(prevMap.get(id))!==JSON.stringify(item)){
+        setDoc(doc(db,collName,id),item);
+      }
+    }
+    for(const[id]of prevMap){
+      if(!nextMap.has(id))deleteDoc(doc(db,collName,id));
+    }
+  },[key]);
+  return[d,setData,ok];
+}
 
 function DB({d:dl}){const dy=dt(dl);if(dy===null)return null;let c="#78909C",l=dy+"日後";if(dy<0){c="#C62828";l=Math.abs(dy)+"日超過"}else if(dy===0){c="#E53935";l="本日"}else if(dy<=3)c="#FB8C00";return <span style={{fontSize:11,color:c,fontWeight:600,display:"inline-flex",alignItems:"center",gap:3}}>{l}</span>}
 function Md({open,onClose,children}){if(!open)return null;return <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.35)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center"}}><div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:16,padding:32,maxWidth:520,width:"92%",maxHeight:"85vh",overflow:"auto",boxShadow:"0 24px 64px rgba(0,0,0,.18)"}}>{children}</div></div>}
@@ -152,8 +182,8 @@ function DataP({onClose}){
   const fr=useRef(null);const[msg,sM]=useState(null);const[imp,sI]=useState(false);
   const td=new Date().toISOString().slice(0,10).replace(/-/g,"");
   const dl=(d,n)=>{const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=n;a.click();URL.revokeObjectURL(u)};
-  const ex=()=>{try{let c=[],s=[];try{const v=localStorage.getItem(CK);if(v)c=JSON.parse(v)}catch(e){}try{const v=localStorage.getItem(SK);if(v)s=JSON.parse(v)}catch(e){}dl({version:1,exportedAt:new Date().toISOString(),cases:c,seminars:s},"ks1-backup-"+td+".json");sM({ok:true,t:"バックアップ保存（案件"+c.length+"件・セミナー"+s.length+"件）"})}catch(e){sM({ok:false,t:"エクスポート失敗"})}};
-  const hf=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;sI(true);try{const txt=await file.text();const d=JSON.parse(txt);if(!d.version){sM({ok:false,t:"非対応ファイル"});sI(false);return}let cc=0,sc=0;if(d.cases&&Array.isArray(d.cases)){let ex=[];try{const v=localStorage.getItem(CK);if(v)ex=JSON.parse(v)}catch(e){}const m=new Map(ex.map(c=>[c.id,c]));d.cases.forEach(c=>m.set(c.id,c));localStorage.setItem(CK,JSON.stringify([...m.values()]));cc=d.cases.length}if(d.seminars&&Array.isArray(d.seminars)){let ex=[];try{const v=localStorage.getItem(SK);if(v)ex=JSON.parse(v)}catch(e){}const m=new Map(ex.map(c=>[c.id,c]));d.seminars.forEach(c=>m.set(c.id,c));localStorage.setItem(SK,JSON.stringify([...m.values()]));sc=d.seminars.length}sM({ok:true,t:"インポート完了（案件"+cc+"件・セミナー"+sc+"件）。再読み込みしてください。"})}catch(e){sM({ok:false,t:"読み込み失敗"})}sI(false);if(fr.current)fr.current.value=""};
+  const ex=async()=>{try{const[cSnap,sSnap]=await Promise.all([getDocs(collection(db,"cases")),getDocs(collection(db,"seminars"))]);const c=cSnap.docs.map(d=>({...d.data(),id:d.id}));const s=sSnap.docs.map(d=>({...d.data(),id:d.id}));dl({version:1,exportedAt:new Date().toISOString(),cases:c,seminars:s},"ks1-backup-"+td+".json");sM({ok:true,t:"バックアップ保存（案件"+c.length+"件・セミナー"+s.length+"件）"})}catch(e){sM({ok:false,t:"エクスポート失敗"})}};
+  const hf=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;sI(true);try{const txt=await file.text();const d=JSON.parse(txt);if(!d.version){sM({ok:false,t:"非対応ファイル"});sI(false);return}let cc=0,sc=0;if(d.cases&&Array.isArray(d.cases)){for(const item of d.cases){await setDoc(doc(db,"cases",item.id),item)}cc=d.cases.length}if(d.seminars&&Array.isArray(d.seminars)){for(const item of d.seminars){await setDoc(doc(db,"seminars",item.id),item)}sc=d.seminars.length}sM({ok:true,t:"インポート完了（案件"+cc+"件・セミナー"+sc+"件）"})}catch(e){sM({ok:false,t:"読み込み失敗"})}sI(false);if(fr.current)fr.current.value=""};
   const bs={padding:"10px 16px",borderRadius:10,border:"none",fontSize:13,fontWeight:600,cursor:"pointer",width:"100%",textAlign:"center"};
   return <div><h2 style={{fontSize:20,fontWeight:700,color:"#1A2A3A",marginBottom:8}}>データ管理</h2><p style={{fontSize:13,color:"#78909C",marginBottom:20}}>バックアップの保存・復元</p><button onClick={ex} style={{...bs,background:"#1A2A3A",color:"#fff",marginBottom:8}}>全データバックアップ（JSON）</button><input ref={fr} type="file" accept=".json" onChange={hf} style={{display:"none"}}/><button onClick={()=>fr.current&&fr.current.click()} disabled={imp} style={{...bs,background:"#fff",color:"#1A2A3A",border:"1.5px solid #CFD8DC",marginBottom:8}}>{imp?"読み込み中…":"バックアップから復元（JSON）"}</button><p style={{fontSize:11,color:"#B0BEC5",marginBottom:12}}>※既存データとマージされます</p>{msg&&<div style={{padding:"10px 14px",borderRadius:10,marginBottom:16,fontSize:13,background:msg.ok?"#E8F5E9":"#FFEBEE",color:msg.ok?"#1B5E20":"#C62828"}}>{msg.t}</div>}<button onClick={onClose} style={{...bs,background:"#F5F5F5",color:"#546E7A"}}>閉じる</button></div>;
 }
