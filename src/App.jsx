@@ -15,7 +15,7 @@ const dt=d=>{if(!d)return null;const n=new Date();n.setHours(0,0,0,0);const t=ne
 const pa=v=>parseFloat(String(v||"").replace(/,/g,""))||0;
 const fn=v=>{const n=String(v||"").replace(/[^\d]/g,"");return n?Number(n).toLocaleString():""};
 const ci=(a,t)=>{if(a<=0)return 0;if(t==="取材編")return Math.round(125000+(a*0.8-170000)*0.265);if(t==="社長出演編")return Math.round(115000+(a*0.8-150000)*0.29);return 0};
-const is={width:"100%",padding:"10px 14px",border:"1.5px solid #CFD8DC",borderRadius:10,fontSize:14,fontFamily:"'Noto Sans JP',sans-serif",outline:"none",boxSizing:"border-box",background:"#FAFAFA"};
+const is={width:"100%",padding:"10px 14px",border:"1.5px solid #CFD8DC",borderRadius:10,fontSize:14,fontFamily:"'Noto Sans JP',sans-serif",outline:"none",boxSizing:"border-box",background:"#FAFAFA",color:"#1A2A3A"};
 
 function useSt(key){
   const[d,sD]=useState([]);const[ok,sO]=useState(false);const ref=useRef(d);
