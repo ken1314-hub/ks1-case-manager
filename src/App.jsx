@@ -10,7 +10,7 @@ const STS = ["検討中","仮予約","進行中","確認待ち","完了","失注
 const SC = {"検討中":{bg:"#FFF3E0",t:"#E65100",d:"#FF9800"},"仮予約":{bg:"#E0F7FA",t:"#006064",d:"#00ACC1"},"進行中":{bg:"#E3F2FD",t:"#0D47A1",d:"#2196F3"},"確認待ち":{bg:"#FFF8E1",t:"#F57F17",d:"#FFC107"},"完了":{bg:"#E8F5E9",t:"#1B5E20",d:"#4CAF50"},"失注":{bg:"#FFEBEE",t:"#B71C1C",d:"#E53935"},"保留":{bg:"#F3E5F5",t:"#4A148C",d:"#9C27B0"}};
 const isDone=s=>s==="完了"||s==="失注";
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-const fd=d=>{if(!d)return"";const x=new Date(d);return x.getFullYear()+"/"+String(x.getMonth()+1).padStart(2,"0")+"/"+String(x.getDate()).padStart(2,"0")};
+const fd=d=>{if(!d)return"";const x=new Date(d);const w=["日","月","火","水","木","金","土"][x.getDay()];return x.getFullYear()+"/"+String(x.getMonth()+1).padStart(2,"0")+"/"+String(x.getDate()).padStart(2,"0")+"("+w+")"};
 const dt=d=>{if(!d)return null;const n=new Date();n.setHours(0,0,0,0);const t=new Date(d);t.setHours(0,0,0,0);return Math.ceil((t-n)/864e5)};
 const pa=v=>parseFloat(String(v||"").replace(/,/g,""))||0;
 const fn=v=>{const n=String(v||"").replace(/[^\d]/g,"");return n?Number(n).toLocaleString():""};
