@@ -5,9 +5,12 @@ import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 
 const CK = "ks1-cases";
 const SK = "ks1-seminars";
-const collMap = {"ks1-cases": "cases", "ks1-seminars": "seminars"};
+const UK = "ks1-customers";
+const collMap = {"ks1-cases": "cases", "ks1-seminars": "seminars", "ks1-customers": "customers"};
 const STS = ["検討中","仮予約","進行中","確認待ち","完了","失注","保留"];
 const SC = {"検討中":{bg:"#FFF3E0",t:"#E65100",d:"#FF9800"},"仮予約":{bg:"#E0F7FA",t:"#006064",d:"#00ACC1"},"進行中":{bg:"#E3F2FD",t:"#0D47A1",d:"#2196F3"},"確認待ち":{bg:"#FFF8E1",t:"#F57F17",d:"#FFC107"},"完了":{bg:"#E8F5E9",t:"#1B5E20",d:"#4CAF50"},"失注":{bg:"#FFEBEE",t:"#B71C1C",d:"#E53935"},"保留":{bg:"#F3E5F5",t:"#4A148C",d:"#9C27B0"}};
+const CST = ["新規","商談中","取引中","休眠","失注"];
+const CSC = {"新規":{bg:"#E3F2FD",t:"#0D47A1",d:"#2196F3"},"商談中":{bg:"#FFF3E0",t:"#E65100",d:"#FF9800"},"取引中":{bg:"#E8F5E9",t:"#1B5E20",d:"#4CAF50"},"休眠":{bg:"#F5F5F5",t:"#546E7A",d:"#90A4AE"},"失注":{bg:"#FFEBEE",t:"#B71C1C",d:"#E53935"}};
 const isDone=s=>s==="完了"||s==="失注";
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const fd=d=>{if(!d)return"";const x=new Date(d);const w=["日","月","火","水","木","金","土"][x.getDay()];return x.getFullYear()+"/"+String(x.getMonth()+1).padStart(2,"0")+"/"+String(x.getDate()).padStart(2,"0")+"("+w+")"};
@@ -190,6 +193,147 @@ function SC2({c,onEdit,onDel,onCompleteAction}){
   </div>;
 }
 
+function CustForm({init,onSave,onCancel,cases,sems}){
+  const df={name:"",contactName:"",contactRole:"",email:"",phone:"",status:"新規",nextApproach:"",nextApproachDeadline:"",nextApproachMemo:"",meetings:[],publishes:[],memo:""};
+  const[f,sF]=useState(init||df);
+  useEffect(()=>{sF(init||df)},[init]);
+  const s=(k,v)=>sF(p=>({...p,[k]:v}));
+  const td=new Date().toISOString().slice(0,10);
+  const[nm,sNm]=useState({date:td,title:"",memo:""});
+  const addMeeting=()=>{if(!nm.title.trim())return;sF(p=>({...p,meetings:[...(p.meetings||[]),{id:uid(),...nm}]}));sNm({date:td,title:"",memo:""})};
+  const delMeeting=id=>sF(p=>({...p,meetings:(p.meetings||[]).filter(m=>m.id!==id)}));
+  const[np,sNp]=useState({date:td,title:"",url:"",views:"",memo:""});
+  const addPublish=()=>{if(!np.title.trim())return;sF(p=>({...p,publishes:[...(p.publishes||[]),{id:uid(),...np}]}));sNp({date:td,title:"",url:"",views:"",memo:""})};
+  const delPublish=id=>sF(p=>({...p,publishes:(p.publishes||[]).filter(m=>m.id!==id)}));
+  const updPublish=(id,k,v)=>sF(p=>({...p,publishes:(p.publishes||[]).map(m=>m.id===id?{...m,[k]:v}:m)}));
+  const related=(cases||[]).filter(c=>c.client&&f.name&&c.client.trim()===f.name.trim()).sort((a,b)=>(b.publishDate||"").localeCompare(a.publishDate||""));
+  const relSems=(sems||[]).filter(c=>c.client&&f.name&&c.client.trim()===f.name.trim()).sort((a,b)=>(b.eventDate||"").localeCompare(a.eventDate||""));
+  const meetings=(f.meetings||[]).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const publishes=(f.publishes||[]).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const totalViews=publishes.reduce((s,p)=>s+(parseInt(String(p.views||"").replace(/,/g,""),10)||0),0);
+  return <div>
+    <h2 style={{fontSize:20,fontWeight:700,color:"#1A2A3A",marginBottom:24}}>{init?"顧客を編集":"新規顧客"}</h2>
+    <Lb label="会社名 *"><input style={is} value={f.name} onChange={e=>s("name",e.target.value)} placeholder="例：株式会社○○" autoFocus/></Lb>
+    <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12}}>
+      <Lb label="担当者名"><input style={is} value={f.contactName} onChange={e=>s("contactName",e.target.value)} placeholder="山田太郎"/></Lb>
+      <Lb label="役職"><input style={is} value={f.contactRole} onChange={e=>s("contactRole",e.target.value)} placeholder="部長"/></Lb>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Lb label="メール"><input style={is} type="email" value={f.email} onChange={e=>s("email",e.target.value)} placeholder="example@company.com"/></Lb>
+      <Lb label="電話"><input style={is} value={f.phone} onChange={e=>s("phone",e.target.value)} placeholder="03-0000-0000"/></Lb>
+    </div>
+    <Lb label="ステータス"><select style={{...is,cursor:"pointer"}} value={f.status} onChange={e=>s("status",e.target.value)}>{CST.map(x=><option key={x}>{x}</option>)}</select></Lb>
+    <div style={{background:"#E3F2FD",borderRadius:12,padding:"16px 16px 4px",marginBottom:16,border:"1px solid #BBDEFB"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"#0D47A1",marginBottom:12}}>今後のアプローチ</div>
+      <Lb label="内容"><input style={is} value={f.nextApproach} onChange={e=>s("nextApproach",e.target.value)} placeholder="例：新企画の提案"/></Lb>
+      <Lb label="期限"><input style={is} type="date" value={f.nextApproachDeadline} onChange={e=>s("nextApproachDeadline",e.target.value)}/></Lb>
+      <Lb label="メモ"><textarea style={{...is,minHeight:50,resize:"vertical"}} value={f.nextApproachMemo||""} onChange={e=>s("nextApproachMemo",e.target.value)} placeholder="補足"/></Lb>
+    </div>
+    <div style={{background:"#FFF3E0",borderRadius:12,padding:"16px",marginBottom:16,border:"1px solid #FFE0B2"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"#E65100",marginBottom:12}}>打ち合わせログ ({meetings.length}件)</div>
+      {meetings.map(m=><div key={m.id} style={{padding:"10px 12px",background:"#fff",borderRadius:8,marginBottom:8,border:"1px solid #ECEFF1"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <span style={{fontSize:12,color:"#E65100",fontWeight:700}}>{m.date?fd(m.date):""}</span>
+          <button onClick={()=>delMeeting(m.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:12}}>✕</button>
+        </div>
+        <div style={{fontSize:13,fontWeight:600,color:"#37474F"}}>{m.title}</div>
+        {m.memo&&<div style={{fontSize:11,color:"#90A4AE",marginTop:4,whiteSpace:"pre-line"}}>{m.memo}</div>}
+      </div>)}
+      <div style={{display:"grid",gridTemplateColumns:"140px 1fr",gap:8,marginBottom:8}}>
+        <input style={is} type="date" value={nm.date} onChange={e=>sNm({...nm,date:e.target.value})}/>
+        <input style={is} value={nm.title} onChange={e=>sNm({...nm,title:e.target.value})} placeholder="タイトル"/>
+      </div>
+      <textarea style={{...is,minHeight:40,resize:"vertical",marginBottom:8}} value={nm.memo} onChange={e=>sNm({...nm,memo:e.target.value})} placeholder="メモ"/>
+      <button onClick={addMeeting} disabled={!nm.title.trim()} style={{padding:"8px 16px",borderRadius:8,border:"none",background:nm.title.trim()?"#E65100":"#B0BEC5",color:"#fff",fontSize:12,fontWeight:700,cursor:nm.title.trim()?"pointer":"default"}}>+ 打ち合わせを追加</button>
+    </div>
+    <div style={{background:"#E8F5E9",borderRadius:12,padding:"16px",marginBottom:16,border:"1px solid #C8E6C9"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"#1B5E20",marginBottom:12,display:"flex",justifyContent:"space-between"}}>
+        <span>公開ログ ({publishes.length}件)</span>
+        {totalViews>0&&<span style={{color:"#33691E"}}>合計再生 {totalViews.toLocaleString()}回</span>}
+      </div>
+      {publishes.map(m=><div key={m.id} style={{padding:"10px 12px",background:"#fff",borderRadius:8,marginBottom:8,border:"1px solid #ECEFF1"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <span style={{fontSize:12,color:"#1B5E20",fontWeight:700}}>{m.date?fd(m.date):""}</span>
+          <button onClick={()=>delPublish(m.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:12}}>✕</button>
+        </div>
+        <div style={{fontSize:13,fontWeight:600,color:"#37474F",marginBottom:4}}>{m.title}</div>
+        {m.url&&<a href={m.url} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{fontSize:11,color:"#1976D2",wordBreak:"break-all",display:"block",marginBottom:4}}>{m.url}</a>}
+        <div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}>
+          <span style={{fontSize:11,color:"#546E7A",fontWeight:600,whiteSpace:"nowrap"}}>再生回数:</span>
+          <input style={{...is,flex:1,padding:"6px 10px",fontSize:12}} inputMode="numeric" value={fn(m.views)} onChange={e=>updPublish(m.id,"views",e.target.value.replace(/[^\d]/g,""))} placeholder="0"/>
+        </div>
+        {m.memo&&<div style={{fontSize:11,color:"#90A4AE",marginTop:4,whiteSpace:"pre-line"}}>{m.memo}</div>}
+      </div>)}
+      <div style={{display:"grid",gridTemplateColumns:"140px 1fr",gap:8,marginBottom:8}}>
+        <input style={is} type="date" value={np.date} onChange={e=>sNp({...np,date:e.target.value})}/>
+        <input style={is} value={np.title} onChange={e=>sNp({...np,title:e.target.value})} placeholder="タイトル"/>
+      </div>
+      <input style={{...is,marginBottom:8}} value={np.url} onChange={e=>sNp({...np,url:e.target.value})} placeholder="URL (任意)"/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 2fr",gap:8,marginBottom:8}}>
+        <input style={is} inputMode="numeric" value={fn(np.views)} onChange={e=>sNp({...np,views:e.target.value.replace(/[^\d]/g,"")})} placeholder="再生数"/>
+        <input style={is} value={np.memo} onChange={e=>sNp({...np,memo:e.target.value})} placeholder="メモ"/>
+      </div>
+      <button onClick={addPublish} disabled={!np.title.trim()} style={{padding:"8px 16px",borderRadius:8,border:"none",background:np.title.trim()?"#1B5E20":"#B0BEC5",color:"#fff",fontSize:12,fontWeight:700,cursor:np.title.trim()?"pointer":"default"}}>+ 公開を追加</button>
+    </div>
+    {(related.length>0||relSems.length>0)&&<div style={{background:"#F5F5F5",borderRadius:12,padding:"16px",marginBottom:16,border:"1px solid #E0E0E0"}}>
+      <div style={{fontSize:12,fontWeight:700,color:"#546E7A",marginBottom:10}}>関連案件・セミナー（クライアント名一致）</div>
+      {related.map(c=><div key={c.id} style={{padding:"8px 12px",background:"#fff",borderRadius:8,marginBottom:6,border:"1px solid #ECEFF1",fontSize:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+          <span style={{fontWeight:700,color:"#37474F"}}>📋 {c.name}</span>
+          <SB s={c.status}/>
+          {c.publishDate&&<span style={{fontSize:11,color:"#00897B",fontWeight:600}}>配信 {fd(c.publishDate)}</span>}
+        </div>
+      </div>)}
+      {relSems.map(c=><div key={c.id} style={{padding:"8px 12px",background:"#fff",borderRadius:8,marginBottom:6,border:"1px solid #EDE7F6",fontSize:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+          <span style={{fontWeight:700,color:"#4527A0"}}>🎤 {c.name}</span>
+          <SB s={c.status}/>
+          {c.eventDate&&<span style={{fontSize:11,color:"#4527A0",fontWeight:600}}>{fd(c.eventDate)}</span>}
+        </div>
+      </div>)}
+    </div>}
+    <Lb label="メモ"><textarea style={{...is,minHeight:70,resize:"vertical"}} value={f.memo} onChange={e=>s("memo",e.target.value)} placeholder="備考"/></Lb>
+    <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:8}}>
+      <button onClick={onCancel} style={{padding:"10px 22px",borderRadius:10,border:"1.5px solid #CFD8DC",background:"#fff",fontSize:14,cursor:"pointer",color:"#546E7A"}}>キャンセル</button>
+      <button onClick={()=>f.name.trim()&&onSave(f)} disabled={!f.name.trim()} style={{padding:"10px 28px",borderRadius:10,border:"none",background:f.name.trim()?"#00695C":"#B0BEC5",color:"#fff",fontSize:14,fontWeight:600,cursor:f.name.trim()?"pointer":"default"}}>保存</button>
+    </div>
+  </div>;
+}
+
+function CC3({c,onEdit,onDel,caseCount,totalViews}){
+  const sc=CSC[c.status]||CSC["新規"];
+  return <div onClick={()=>onEdit(c)} style={{background:"#fff",borderRadius:14,padding:"18px 20px",marginBottom:10,border:"1px solid #E0F2F1",cursor:"pointer"}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:6}}>
+          <span style={{fontSize:15,fontWeight:700,color:"#1A2A3A"}}>{c.name}</span>
+          <span style={{fontSize:11,fontWeight:600,color:sc.t,background:sc.bg,padding:"2px 10px",borderRadius:20,display:"inline-flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:"50%",background:sc.d,display:"inline-block"}}/>{c.status}</span>
+        </div>
+        {(c.contactName||c.contactRole)&&<div style={{fontSize:12,color:"#78909C",marginBottom:4}}>{c.contactRole?c.contactRole+" ":""}{c.contactName}</div>}
+        <div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:4}}>
+          {c.email&&<span style={{fontSize:11,color:"#546E7A"}}>✉ {c.email}</span>}
+          {c.phone&&<span style={{fontSize:11,color:"#546E7A"}}>☎ {c.phone}</span>}
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
+          {caseCount>0&&<span style={{fontSize:11,color:"#1A2A3A",background:"#ECEFF1",padding:"3px 9px",borderRadius:10,fontWeight:600}}>案件 {caseCount}件</span>}
+          {c.meetings&&c.meetings.length>0&&<span style={{fontSize:11,color:"#E65100",background:"#FFF3E0",padding:"3px 9px",borderRadius:10,fontWeight:600}}>打合せ {c.meetings.length}回</span>}
+          {c.publishes&&c.publishes.length>0&&<span style={{fontSize:11,color:"#1B5E20",background:"#E8F5E9",padding:"3px 9px",borderRadius:10,fontWeight:600}}>公開 {c.publishes.length}本</span>}
+          {totalViews>0&&<span style={{fontSize:11,color:"#1976D2",background:"#E3F2FD",padding:"3px 9px",borderRadius:10,fontWeight:600}}>再生 {totalViews.toLocaleString()}</span>}
+        </div>
+        {c.nextApproach&&<div style={{marginTop:8,padding:"8px 12px",background:"#E3F2FD",borderRadius:10,border:"1px solid #BBDEFB"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+            <span style={{fontSize:12,fontWeight:700,color:"#0D47A1"}}>次:</span>
+            <span style={{fontSize:12,fontWeight:600,color:"#37474F",flex:1,minWidth:0}}>{c.nextApproach}</span>
+            {c.nextApproachDeadline&&<span style={{fontSize:11,color:"#78909C"}}>{fd(c.nextApproachDeadline)} <DB d={c.nextApproachDeadline}/></span>}
+          </div>
+        </div>}
+        {c.memo&&<div style={{fontSize:12,color:"#90A4AE",marginTop:6,whiteSpace:"pre-line",maxHeight:40,overflow:"hidden"}}>{c.memo}</div>}
+      </div>
+      <button onClick={e=>{e.stopPropagation();onDel(c.id)}} style={{background:"none",border:"none",cursor:"pointer",padding:4,color:"#B0BEC5",flexShrink:0}}>✕</button>
+    </div>
+  </div>;
+}
+
 function ActList({items,onEdit,onCompleteAction}){
   if(!items.length)return <div style={{textAlign:"center",padding:"60px 20px",color:"#B0BEC5"}}>未完了のアクションはありません。</div>;
   return <div>{items.map(c=>{const dy=dt(c.nextActionDeadline);let rb="#ECEFF1";if(dy!==null&&dy<=0)rb="#FFCDD2";else if(dy!==null&&dy<=3)rb="#FFE0B2";return <div key={c.id} onClick={()=>onEdit(c)} style={{background:"#fff",borderRadius:12,padding:"14px 18px",marginBottom:8,border:"1.5px solid "+rb,cursor:"pointer"}}><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}><div style={{display:"flex",alignItems:"center",gap:8}}>{c.nextActionDeadline?<span style={{fontSize:14,fontWeight:800,color:dy<0?"#C62828":dy<=3?"#E65100":"#37474F"}}>{fd(c.nextActionDeadline)}</span>:<span style={{fontSize:13,color:"#B0BEC5",fontStyle:"italic"}}>期限未設定</span>}<DB d={c.nextActionDeadline}/></div><div style={{display:"flex",alignItems:"center",gap:6}}><SB s={c.status}/><button onClick={e=>{e.stopPropagation();onCompleteAction&&onCompleteAction(c.id)}} style={{padding:"3px 10px",borderRadius:8,border:"1.5px solid #4CAF50",background:"#E8F5E9",color:"#1B5E20",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>✓ 完了</button></div></div><div style={{fontSize:13,fontWeight:600,color:"#37474F",marginBottom:4}}>{c.nextAction}</div>{c.nextActionMemo&&<div style={{fontSize:11,color:"#90A4AE",marginBottom:4,whiteSpace:"pre-line",maxHeight:36,overflow:"hidden"}}>{c.nextActionMemo}</div>}<div style={{fontSize:12,color:"#78909C"}}>{c.name}{c.client?" — "+c.client:""}</div></div>})}</div>;
@@ -199,8 +343,8 @@ function DataP({onClose}){
   const fr=useRef(null);const[msg,sM]=useState(null);const[imp,sI]=useState(false);
   const td=new Date().toISOString().slice(0,10).replace(/-/g,"");
   const dl=(d,n)=>{const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=n;a.click();URL.revokeObjectURL(u)};
-  const ex=async()=>{try{const[cSnap,sSnap]=await Promise.all([getDocs(collection(db,"cases")),getDocs(collection(db,"seminars"))]);const c=cSnap.docs.map(d=>({...d.data(),id:d.id}));const s=sSnap.docs.map(d=>({...d.data(),id:d.id}));dl({version:1,exportedAt:new Date().toISOString(),cases:c,seminars:s},"ks1-backup-"+td+".json");sM({ok:true,t:"バックアップ保存（案件"+c.length+"件・セミナー"+s.length+"件）"})}catch(e){sM({ok:false,t:"エクスポート失敗"})}};
-  const hf=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;sI(true);try{const txt=await file.text();const d=JSON.parse(txt);if(!d.version){sM({ok:false,t:"非対応ファイル"});sI(false);return}let cc=0,sc=0;if(d.cases&&Array.isArray(d.cases)){for(const item of d.cases){await setDoc(doc(db,"cases",item.id),item)}cc=d.cases.length}if(d.seminars&&Array.isArray(d.seminars)){for(const item of d.seminars){await setDoc(doc(db,"seminars",item.id),item)}sc=d.seminars.length}sM({ok:true,t:"インポート完了（案件"+cc+"件・セミナー"+sc+"件）"})}catch(e){sM({ok:false,t:"読み込み失敗"})}sI(false);if(fr.current)fr.current.value=""};
+  const ex=async()=>{try{const[cSnap,sSnap,uSnap]=await Promise.all([getDocs(collection(db,"cases")),getDocs(collection(db,"seminars")),getDocs(collection(db,"customers"))]);const c=cSnap.docs.map(d=>({...d.data(),id:d.id}));const s=sSnap.docs.map(d=>({...d.data(),id:d.id}));const u=uSnap.docs.map(d=>({...d.data(),id:d.id}));dl({version:2,exportedAt:new Date().toISOString(),cases:c,seminars:s,customers:u},"ks1-backup-"+td+".json");sM({ok:true,t:"バックアップ保存（案件"+c.length+"・セミナー"+s.length+"・顧客"+u.length+"件）"})}catch(e){sM({ok:false,t:"エクスポート失敗"})}};
+  const hf=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;sI(true);try{const txt=await file.text();const d=JSON.parse(txt);if(!d.version){sM({ok:false,t:"非対応ファイル"});sI(false);return}let cc=0,sc=0,uc=0;if(d.cases&&Array.isArray(d.cases)){for(const item of d.cases){await setDoc(doc(db,"cases",item.id),item)}cc=d.cases.length}if(d.seminars&&Array.isArray(d.seminars)){for(const item of d.seminars){await setDoc(doc(db,"seminars",item.id),item)}sc=d.seminars.length}if(d.customers&&Array.isArray(d.customers)){for(const item of d.customers){await setDoc(doc(db,"customers",item.id),item)}uc=d.customers.length}sM({ok:true,t:"インポート完了（案件"+cc+"・セミナー"+sc+"・顧客"+uc+"件）"})}catch(e){sM({ok:false,t:"読み込み失敗"})}sI(false);if(fr.current)fr.current.value=""};
   const bs={padding:"10px 16px",borderRadius:10,border:"none",fontSize:13,fontWeight:600,cursor:"pointer",width:"100%",textAlign:"center"};
   return <div><h2 style={{fontSize:20,fontWeight:700,color:"#1A2A3A",marginBottom:8}}>データ管理</h2><p style={{fontSize:13,color:"#78909C",marginBottom:20}}>バックアップの保存・復元</p><button onClick={ex} style={{...bs,background:"#1A2A3A",color:"#fff",marginBottom:8}}>全データバックアップ（JSON）</button><input ref={fr} type="file" accept=".json" onChange={hf} style={{display:"none"}}/><button onClick={()=>fr.current&&fr.current.click()} disabled={imp} style={{...bs,background:"#fff",color:"#1A2A3A",border:"1.5px solid #CFD8DC",marginBottom:8}}>{imp?"読み込み中…":"バックアップから復元（JSON）"}</button><p style={{fontSize:11,color:"#B0BEC5",marginBottom:12}}>※既存データとマージされます</p>{msg&&<div style={{padding:"10px 14px",borderRadius:10,marginBottom:16,fontSize:13,background:msg.ok?"#E8F5E9":"#FFEBEE",color:msg.ok?"#1B5E20":"#C62828"}}>{msg.t}</div>}<button onClick={onClose} style={{...bs,background:"#F5F5F5",color:"#546E7A"}}>閉じる</button></div>;
 }
@@ -302,6 +446,57 @@ function SemMod(){
   </>;
 }
 
+function CustMod(){
+  const[custs,sC,ok]=useSt(UK);const[cases]=useSt(CK);const[sems]=useSt(SK);
+  const[mo,sM]=useState(false);const[ed,sE]=useState(null);const[mk,sMk]=useState(0);const[dl,sD]=useState(null);const[fs,sFs]=useState("すべて");const[q,sQ]=useState("");
+  const save=f=>{if(ed){sC(p=>p.map(c=>c.id===ed.id?{...c,...f,updatedAt:new Date().toISOString()}:c))}else{sC(p=>[{id:uid(),...f,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()},...p])}sM(false);sE(null)};
+  const getCaseCount=(name)=>cases.filter(c=>c.client&&name&&c.client.trim()===name.trim()).length;
+  const getViews=(c)=>(c.publishes||[]).reduce((s,p)=>s+(parseInt(String(p.views||"").replace(/,/g,""),10)||0),0);
+  const fil=custs.filter(c=>{if(fs!=="すべて"&&c.status!==fs)return false;if(q)return((c.name||"")+(c.contactName||"")+(c.email||"")+(c.phone||"")+(c.memo||"")+(c.nextApproach||"")).toLowerCase().includes(q.toLowerCase());return true}).sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""));
+  const cnt={total:custs.length,active:custs.filter(c=>c.status==="取引中").length,nego:custs.filter(c=>c.status==="商談中").length,newC:custs.filter(c=>c.status==="新規").length};
+  const approaches=custs.filter(c=>c.nextApproach).sort((a,b)=>(a.nextApproachDeadline||"9999").localeCompare(b.nextApproachDeadline||"9999"));
+  if(!ok)return <div style={{textAlign:"center",padding:60,color:"#90A4AE"}}>読み込み中…</div>;
+  return <>
+    <div style={{background:"linear-gradient(135deg,#00897B,#00695C)",padding:"28px 28px 24px",borderRadius:"0 0 24px 24px"}}>
+      <div style={{maxWidth:720,margin:"0 auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,.45)",letterSpacing:".12em",marginBottom:4}}>KS One Investment</div>
+            <h1 style={{fontSize:22,fontWeight:800,color:"#fff",margin:0}}>顧客管理</h1>
+          </div>
+          <button onClick={()=>{sE(null);sM(true);sMk(k=>k+1)}} style={{background:"linear-gradient(135deg,#26A69A,#00897B)",color:"#fff",border:"none",borderRadius:12,padding:"11px 22px",fontSize:14,fontWeight:700,cursor:"pointer"}}>+ 新規顧客</button>
+        </div>
+        <div style={{display:"flex",gap:10,marginTop:20}}>
+          {[["全顧客",cnt.total,"#00695C"],["取引中",cnt.active,"#4CAF50"],["商談中",cnt.nego,"#FF9800"],["新規",cnt.newC,"#2196F3"]].map(([l,v,c])=><div key={l} style={{background:"#fff",borderRadius:12,padding:"14px 18px",border:"1px solid #ECEFF1",flex:"1 1 0",minWidth:80}}>
+            <div style={{fontSize:24,fontWeight:800,color:c}}>{v}</div>
+            <div style={{fontSize:11,color:"#90A4AE",fontWeight:600,marginTop:2}}>{l}</div>
+          </div>)}
+        </div>
+      </div>
+    </div>
+    <div style={{maxWidth:720,margin:"0 auto",padding:"20px 16px 40px"}}>
+      <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:180}}><input style={{...is,background:"#fff"}} placeholder="検索…" value={q} onChange={e=>sQ(e.target.value)}/></div>
+        <div style={{display:"flex",gap:4,alignItems:"center",flexWrap:"wrap"}}>
+          {["すべて",...CST].map(s=>{const a=fs===s,sc=s!=="すべて"?CSC[s]:null;return <button key={s} onClick={()=>sFs(s)} style={{padding:"7px 14px",borderRadius:20,border:a?"none":"1.5px solid #E0E6EB",background:a?(sc?sc.bg:"#00695C"):"#fff",color:a?(sc?sc.t:"#fff"):"#78909C",fontSize:12,fontWeight:600,cursor:"pointer"}}>{s}</button>})}
+        </div>
+      </div>
+      {approaches.length>0&&<div style={{background:"#E3F2FD",borderRadius:12,padding:"14px 16px",marginBottom:16,border:"1px solid #BBDEFB"}}>
+        <div style={{fontSize:11,fontWeight:700,color:"#0D47A1",marginBottom:8,letterSpacing:".04em"}}>今後のアプローチ ({approaches.length}件)</div>
+        {approaches.slice(0,5).map(c=><div key={c.id} onClick={()=>{sE(c);sM(true);sMk(k=>k+1)}} style={{padding:"8px 10px",background:"#fff",borderRadius:8,marginBottom:6,cursor:"pointer",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+          <span style={{fontSize:12,fontWeight:700,color:"#0D47A1"}}>{c.name}</span>
+          <span style={{fontSize:12,color:"#37474F",flex:1,minWidth:0}}>{c.nextApproach}</span>
+          {c.nextApproachDeadline&&<span style={{fontSize:11,color:"#78909C"}}>{fd(c.nextApproachDeadline)} <DB d={c.nextApproachDeadline}/></span>}
+        </div>)}
+        {approaches.length>5&&<div style={{fontSize:11,color:"#90A4AE",textAlign:"center",marginTop:4}}>他 {approaches.length-5}件</div>}
+      </div>}
+      {fil.length===0?<div style={{textAlign:"center",padding:60,color:"#B0BEC5"}}>{custs.length===0?"まだ顧客がありません。":"該当なし"}</div>:fil.map(c=><CC3 key={c.id} c={c} caseCount={getCaseCount(c.name)} totalViews={getViews(c)} onEdit={c=>{sE(c);sM(true);sMk(k=>k+1)}} onDel={id=>sD(id)}/>)}
+    </div>
+    <Md open={mo} onClose={()=>{sM(false);sE(null)}}><CustForm key={mk} init={ed} cases={cases} sems={sems} onSave={save} onCancel={()=>{sM(false);sE(null)}}/></Md>
+    <Md open={!!dl} onClose={()=>sD(null)}><div style={{textAlign:"center"}}><div style={{fontSize:40,marginBottom:12}}>⚠️</div><h3 style={{fontSize:17,fontWeight:700,marginBottom:24}}>削除しますか？</h3><div style={{display:"flex",gap:10,justifyContent:"center"}}><button onClick={()=>sD(null)} style={{padding:"10px 24px",borderRadius:10,border:"1.5px solid #CFD8DC",background:"#fff",fontSize:14,cursor:"pointer"}}>キャンセル</button><button onClick={()=>{sC(p=>p.filter(c=>c.id!==dl));sD(null)}} style={{padding:"10px 24px",borderRadius:10,border:"none",background:"#E53935",color:"#fff",fontSize:14,fontWeight:600,cursor:"pointer"}}>削除</button></div></div></Md>
+  </>;
+}
+
 export default function App(){
   const[user,sU]=useState(null);const[loading,sL]=useState(true);const[app,sA]=useState("cases");const[dp,sD]=useState(false);
   useEffect(()=>{const unsub=onAuthStateChanged(auth,u=>{sU(u);sL(false)});return unsub},[]);
@@ -320,9 +515,10 @@ export default function App(){
   </div>;
   return <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#F5F7FA,#EEF1F5)",fontFamily:"'Noto Sans JP','DM Sans',sans-serif"}}>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-    <div style={{maxWidth:720,margin:"0 auto",padding:"16px 16px 0"}}><div style={{display:"flex",gap:8,alignItems:"center"}}>{[{k:"cases",l:"案件管理",e:"📋",bg:"#1A2A3A"},{k:"seminars",l:"セミナー管理",e:"🎤",bg:"#4527A0"}].map(t=><button key={t.k} onClick={()=>sA(t.k)} style={{flex:1,padding:"12px 16px",borderRadius:14,border:app===t.k?"2px solid "+t.bg:"2px solid transparent",background:app===t.k?t.bg:"#fff",color:app===t.k?"#fff":"#78909C",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><span style={{fontSize:18}}>{t.e}</span>{t.l}</button>)}<button onClick={()=>sD(true)} style={{width:48,height:48,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:20}}>⬇</button><button onClick={()=>signOut(auth)} title="ログアウト" style={{width:48,height:48,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:16}}>🚪</button></div></div>
+    <div style={{maxWidth:720,margin:"0 auto",padding:"16px 16px 0"}}><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>{[{k:"cases",l:"案件",e:"📋",bg:"#1A2A3A"},{k:"seminars",l:"セミナー",e:"🎤",bg:"#4527A0"},{k:"customers",l:"顧客",e:"🤝",bg:"#00695C"}].map(t=><button key={t.k} onClick={()=>sA(t.k)} style={{flex:"1 1 80px",padding:"12px 10px",borderRadius:14,border:app===t.k?"2px solid "+t.bg:"2px solid transparent",background:app===t.k?t.bg:"#fff",color:app===t.k?"#fff":"#78909C",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><span style={{fontSize:16}}>{t.e}</span>{t.l}</button>)}<button onClick={()=>sD(true)} style={{width:44,height:44,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:18}}>⬇</button><button onClick={()=>signOut(auth)} title="ログアウト" style={{width:44,height:44,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:14}}>🚪</button></div></div>
     {app==="cases"&&<CaseMod/>}
     {app==="seminars"&&<SemMod/>}
+    {app==="customers"&&<CustMod/>}
     <Md open={dp} onClose={()=>sD(false)}><DataP onClose={()=>sD(false)}/></Md>
   </div>;
 }
