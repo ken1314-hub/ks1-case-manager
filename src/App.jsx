@@ -24,11 +24,12 @@ function useSt(key){
   const[d,sD]=useState([]);const[ok,sO]=useState(false);const ref=useRef(d);
   useEffect(()=>{
     const collName=collMap[key]||key;
+    const timer=setTimeout(()=>sO(true),3000);
     const unsub=onSnapshot(collection(db,collName),snap=>{
       const items=snap.docs.map(d=>({...d.data(),id:d.id}));
-      ref.current=items;sD(items);sO(true);
-    });
-    return unsub;
+      ref.current=items;sD(items);sO(true);clearTimeout(timer);
+    },err=>{console.error("Firestore error",collName,err);sO(true);clearTimeout(timer)});
+    return()=>{clearTimeout(timer);unsub()};
   },[]);
   const setData=useCallback((updater)=>{
     const prev=ref.current;
