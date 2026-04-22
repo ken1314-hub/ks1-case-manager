@@ -6,7 +6,8 @@ import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
 const CK = "ks1-cases";
 const SK = "ks1-seminars";
 const UK = "ks1-customers";
-const collMap = {"ks1-cases": "cases", "ks1-seminars": "seminars", "ks1-customers": "customers"};
+const TK = "ks1-tasks";
+const collMap = {"ks1-cases": "cases", "ks1-seminars": "seminars", "ks1-customers": "customers", "ks1-tasks": "tasks"};
 const STS = ["検討中","仮予約","進行中","確認待ち","完了","失注","保留"];
 const SC = {"検討中":{bg:"#FFF3E0",t:"#E65100",d:"#FF9800"},"仮予約":{bg:"#E0F7FA",t:"#006064",d:"#00ACC1"},"進行中":{bg:"#E3F2FD",t:"#0D47A1",d:"#2196F3"},"確認待ち":{bg:"#FFF8E1",t:"#F57F17",d:"#FFC107"},"完了":{bg:"#E8F5E9",t:"#1B5E20",d:"#4CAF50"},"失注":{bg:"#FFEBEE",t:"#B71C1C",d:"#E53935"},"保留":{bg:"#F3E5F5",t:"#4A148C",d:"#9C27B0"}};
 const CST = ["新規","商談中","取引中","休眠","失注"];
@@ -344,8 +345,8 @@ function DataP({onClose}){
   const fr=useRef(null);const[msg,sM]=useState(null);const[imp,sI]=useState(false);
   const td=new Date().toISOString().slice(0,10).replace(/-/g,"");
   const dl=(d,n)=>{const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=n;a.click();URL.revokeObjectURL(u)};
-  const ex=async()=>{try{const[cSnap,sSnap,uSnap]=await Promise.all([getDocs(collection(db,"cases")),getDocs(collection(db,"seminars")),getDocs(collection(db,"customers"))]);const c=cSnap.docs.map(d=>({...d.data(),id:d.id}));const s=sSnap.docs.map(d=>({...d.data(),id:d.id}));const u=uSnap.docs.map(d=>({...d.data(),id:d.id}));dl({version:2,exportedAt:new Date().toISOString(),cases:c,seminars:s,customers:u},"ks1-backup-"+td+".json");sM({ok:true,t:"バックアップ保存（案件"+c.length+"・セミナー"+s.length+"・顧客"+u.length+"件）"})}catch(e){sM({ok:false,t:"エクスポート失敗"})}};
-  const hf=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;sI(true);try{const txt=await file.text();const d=JSON.parse(txt);if(!d.version){sM({ok:false,t:"非対応ファイル"});sI(false);return}let cc=0,sc=0,uc=0;if(d.cases&&Array.isArray(d.cases)){for(const item of d.cases){await setDoc(doc(db,"cases",item.id),item)}cc=d.cases.length}if(d.seminars&&Array.isArray(d.seminars)){for(const item of d.seminars){await setDoc(doc(db,"seminars",item.id),item)}sc=d.seminars.length}if(d.customers&&Array.isArray(d.customers)){for(const item of d.customers){await setDoc(doc(db,"customers",item.id),item)}uc=d.customers.length}sM({ok:true,t:"インポート完了（案件"+cc+"・セミナー"+sc+"・顧客"+uc+"件）"})}catch(e){sM({ok:false,t:"読み込み失敗"})}sI(false);if(fr.current)fr.current.value=""};
+  const ex=async()=>{try{const[cSnap,sSnap,uSnap,tSnap]=await Promise.all([getDocs(collection(db,"cases")),getDocs(collection(db,"seminars")),getDocs(collection(db,"customers")),getDocs(collection(db,"tasks"))]);const c=cSnap.docs.map(d=>({...d.data(),id:d.id}));const s=sSnap.docs.map(d=>({...d.data(),id:d.id}));const u=uSnap.docs.map(d=>({...d.data(),id:d.id}));const tk=tSnap.docs.map(d=>({...d.data(),id:d.id}));dl({version:3,exportedAt:new Date().toISOString(),cases:c,seminars:s,customers:u,tasks:tk},"ks1-backup-"+td+".json");sM({ok:true,t:"バックアップ保存（案件"+c.length+"・セミナー"+s.length+"・顧客"+u.length+"・タスク"+tk.length+"）"})}catch(e){sM({ok:false,t:"エクスポート失敗"})}};
+  const hf=async e=>{const file=e.target.files&&e.target.files[0];if(!file)return;sI(true);try{const txt=await file.text();const d=JSON.parse(txt);if(!d.version){sM({ok:false,t:"非対応ファイル"});sI(false);return}let cc=0,sc=0,uc=0,tc=0;if(d.cases&&Array.isArray(d.cases)){for(const item of d.cases){await setDoc(doc(db,"cases",item.id),item)}cc=d.cases.length}if(d.seminars&&Array.isArray(d.seminars)){for(const item of d.seminars){await setDoc(doc(db,"seminars",item.id),item)}sc=d.seminars.length}if(d.customers&&Array.isArray(d.customers)){for(const item of d.customers){await setDoc(doc(db,"customers",item.id),item)}uc=d.customers.length}if(d.tasks&&Array.isArray(d.tasks)){for(const item of d.tasks){await setDoc(doc(db,"tasks",item.id),item)}tc=d.tasks.length}sM({ok:true,t:"インポート完了（案件"+cc+"・セミナー"+sc+"・顧客"+uc+"・タスク"+tc+"）"})}catch(e){sM({ok:false,t:"読み込み失敗"})}sI(false);if(fr.current)fr.current.value=""};
   const bs={padding:"10px 16px",borderRadius:10,border:"none",fontSize:13,fontWeight:600,cursor:"pointer",width:"100%",textAlign:"center"};
   return <div><h2 style={{fontSize:20,fontWeight:700,color:"#1A2A3A",marginBottom:8}}>データ管理</h2><p style={{fontSize:13,color:"#78909C",marginBottom:20}}>バックアップの保存・復元</p><button onClick={ex} style={{...bs,background:"#1A2A3A",color:"#fff",marginBottom:8}}>全データバックアップ（JSON）</button><input ref={fr} type="file" accept=".json" onChange={hf} style={{display:"none"}}/><button onClick={()=>fr.current&&fr.current.click()} disabled={imp} style={{...bs,background:"#fff",color:"#1A2A3A",border:"1.5px solid #CFD8DC",marginBottom:8}}>{imp?"読み込み中…":"バックアップから復元（JSON）"}</button><p style={{fontSize:11,color:"#B0BEC5",marginBottom:12}}>※既存データとマージされます</p>{msg&&<div style={{padding:"10px 14px",borderRadius:10,marginBottom:16,fontSize:13,background:msg.ok?"#E8F5E9":"#FFEBEE",color:msg.ok?"#1B5E20":"#C62828"}}>{msg.t}</div>}<button onClick={onClose} style={{...bs,background:"#F5F5F5",color:"#546E7A"}}>閉じる</button></div>;
 }
@@ -498,6 +499,79 @@ function CustMod(){
   </>;
 }
 
+function TaskMod(){
+  const[tasks,sT,ok]=useSt(TK);
+  const[newT,sNewT]=useState("");const[newD,sNewD]=useState("");const[exp,sExp]=useState({});const[showDone,sShowDone]=useState(false);const[filter,sFilter]=useState("all");
+  const add=()=>{if(!newT.trim())return;sT(p=>[...p,{id:uid(),title:newT.trim(),deadline:newD,memo:"",done:false,createdAt:new Date().toISOString(),order:p.length}]);sNewT("");sNewD("")};
+  const toggle=id=>sT(p=>p.map(t=>t.id===id?{...t,done:!t.done,completedAt:!t.done?new Date().toISOString():null}:t));
+  const update=(id,k,v)=>sT(p=>p.map(t=>t.id===id?{...t,[k]:v}:t));
+  const del=id=>sT(p=>p.filter(t=>t.id!==id));
+  const clearDone=()=>sT(p=>p.filter(t=>!t.done));
+  const active=tasks.filter(t=>!t.done);
+  const done=tasks.filter(t=>t.done).sort((a,b)=>(b.completedAt||"").localeCompare(a.completedAt||""));
+  const filtered=active.filter(t=>{if(filter==="today"){const dy=dt(t.deadline);return dy!==null&&dy<=0}if(filter==="week"){const dy=dt(t.deadline);return dy!==null&&dy<=7}if(filter==="nodate")return !t.deadline;return true}).sort((a,b)=>{const ad=a.deadline||"9999-12-31",bd=b.deadline||"9999-12-31";if(ad!==bd)return ad.localeCompare(bd);return(a.order||0)-(b.order||0)});
+  const cnt={all:active.length,today:active.filter(t=>{const dy=dt(t.deadline);return dy!==null&&dy<=0}).length,week:active.filter(t=>{const dy=dt(t.deadline);return dy!==null&&dy<=7}).length,nodate:active.filter(t=>!t.deadline).length};
+  if(!ok)return <div style={{textAlign:"center",padding:60,color:"#90A4AE"}}>読み込み中…</div>;
+  return <>
+    <div style={{background:"linear-gradient(135deg,#1976D2,#0D47A1)",padding:"28px 28px 24px",borderRadius:"0 0 24px 24px"}}>
+      <div style={{maxWidth:720,margin:"0 auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,.45)",letterSpacing:".12em",marginBottom:4}}>KS One Investment</div>
+            <h1 style={{fontSize:22,fontWeight:800,color:"#fff",margin:0}}>タスク</h1>
+          </div>
+          <div style={{fontSize:13,color:"rgba(255,255,255,.75)",fontWeight:600}}>未完了 {active.length}件</div>
+        </div>
+      </div>
+    </div>
+    <div style={{maxWidth:720,margin:"0 auto",padding:"20px 16px 40px"}}>
+      <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:16,border:"1px solid #E3F2FD",boxShadow:"0 2px 8px rgba(25,118,210,.06)"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          <input style={{...is,flex:"1 1 200px",border:"1.5px solid #BBDEFB"}} value={newT} onChange={e=>sNewT(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")add()}} placeholder="+ 新しいタスクを追加"/>
+          <input style={{...is,width:150,border:"1.5px solid #BBDEFB"}} type="date" value={newD} onChange={e=>sNewD(e.target.value)}/>
+          <button onClick={add} disabled={!newT.trim()} style={{padding:"10px 20px",borderRadius:10,border:"none",background:newT.trim()?"#1976D2":"#B0BEC5",color:"#fff",fontSize:13,fontWeight:700,cursor:newT.trim()?"pointer":"default"}}>追加</button>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+        {[{k:"all",l:"すべて",c:cnt.all},{k:"today",l:"今日まで",c:cnt.today},{k:"week",l:"今週",c:cnt.week},{k:"nodate",l:"期限なし",c:cnt.nodate}].map(t=><button key={t.k} onClick={()=>sFilter(t.k)} style={{padding:"7px 14px",borderRadius:20,border:filter===t.k?"none":"1.5px solid #E0E6EB",background:filter===t.k?"#1976D2":"#fff",color:filter===t.k?"#fff":"#78909C",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>{t.l}<span style={{fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:10,background:filter===t.k?"rgba(255,255,255,.2)":"#ECEFF1",color:filter===t.k?"#fff":"#546E7A"}}>{t.c}</span></button>)}
+      </div>
+      {filtered.length===0?<div style={{textAlign:"center",padding:40,color:"#B0BEC5"}}>{active.length===0?"タスクはありません。追加してみましょう！":"該当するタスクがありません"}</div>:<div>
+        {filtered.map(t=>{const dy=dt(t.deadline);const urg=dy!==null&&dy<=0;const warn=dy!==null&&dy>0&&dy<=3;const open=exp[t.id];return <div key={t.id} style={{background:"#fff",borderRadius:12,marginBottom:8,border:urg?"1.5px solid #EF9A9A":warn?"1.5px solid #FFCC80":"1px solid #ECEFF1",overflow:"hidden",transition:"all .15s"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer"}} onClick={()=>sExp(e=>({...e,[t.id]:!e[t.id]}))}>
+            <button onClick={e=>{e.stopPropagation();toggle(t.id)}} style={{width:22,height:22,borderRadius:"50%",border:"2px solid #1976D2",background:"#fff",cursor:"pointer",flexShrink:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{color:"#1976D2",fontSize:14,fontWeight:700,visibility:"hidden"}}>✓</span></button>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:600,color:"#1A2A3A"}}>{t.title}</div>
+              {t.deadline&&<div style={{display:"flex",alignItems:"center",gap:8,marginTop:2}}><span style={{fontSize:11,color:urg?"#C62828":warn?"#E65100":"#78909C",fontWeight:600}}>📅 {fd(t.deadline)}</span><DB d={t.deadline}/></div>}
+              {t.memo&&!open&&<div style={{fontSize:11,color:"#90A4AE",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.memo}</div>}
+            </div>
+            <span style={{color:"#B0BEC5",fontSize:12}}>{open?"▲":"▼"}</span>
+          </div>
+          {open&&<div style={{padding:"0 14px 14px 46px",borderTop:"1px solid #F5F5F5"}}>
+            <input style={{...is,marginTop:10,marginBottom:8}} value={t.title} onChange={e=>update(t.id,"title",e.target.value)} placeholder="タイトル"/>
+            <input style={{...is,marginBottom:8}} type="date" value={t.deadline||""} onChange={e=>update(t.id,"deadline",e.target.value)}/>
+            <textarea style={{...is,minHeight:50,resize:"vertical",marginBottom:8}} value={t.memo||""} onChange={e=>update(t.id,"memo",e.target.value)} placeholder="メモ"/>
+            <button onClick={()=>del(t.id)} style={{padding:"6px 14px",borderRadius:8,border:"1px solid #FFCDD2",background:"#fff",color:"#C62828",fontSize:11,fontWeight:600,cursor:"pointer"}}>🗑 削除</button>
+          </div>}
+        </div>})}
+      </div>}
+      {done.length>0&&<div style={{marginTop:24,paddingTop:16,borderTop:"1px solid #ECEFF1"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <button onClick={()=>sShowDone(!showDone)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#78909C",display:"flex",alignItems:"center",gap:6,padding:0}}>{showDone?"▼":"▶"} 完了済み ({done.length}件)</button>
+          {showDone&&<button onClick={()=>{if(confirm("完了済みタスクを全て削除しますか？"))clearDone()}} style={{fontSize:11,color:"#C62828",background:"none",border:"none",cursor:"pointer",fontWeight:600}}>全て削除</button>}
+        </div>
+        {showDone&&<div>{done.map(t=><div key={t.id} style={{background:"#FAFAFA",borderRadius:10,padding:"10px 14px",marginBottom:6,border:"1px solid #F0F0F0",display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={()=>toggle(t.id)} style={{width:22,height:22,borderRadius:"50%",border:"2px solid #4CAF50",background:"#4CAF50",cursor:"pointer",flexShrink:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span></button>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,color:"#90A4AE",textDecoration:"line-through"}}>{t.title}</div>
+            {t.completedAt&&<div style={{fontSize:10,color:"#B0BEC5",marginTop:2}}>完了 {fd(t.completedAt)}</div>}
+          </div>
+          <button onClick={()=>del(t.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:14}}>✕</button>
+        </div>)}</div>}
+      </div>}
+    </div>
+  </>;
+}
+
 export default function App(){
   const[user,sU]=useState(null);const[loading,sL]=useState(true);const[app,sA]=useState("cases");const[dp,sD]=useState(false);
   useEffect(()=>{const unsub=onAuthStateChanged(auth,u=>{sU(u);sL(false)});return unsub},[]);
@@ -516,10 +590,11 @@ export default function App(){
   </div>;
   return <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#F5F7FA,#EEF1F5)",fontFamily:"'Noto Sans JP','DM Sans',sans-serif"}}>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
-    <div style={{maxWidth:720,margin:"0 auto",padding:"16px 16px 0"}}><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>{[{k:"cases",l:"案件",e:"📋",bg:"#1A2A3A"},{k:"seminars",l:"セミナー",e:"🎤",bg:"#4527A0"},{k:"customers",l:"顧客",e:"🤝",bg:"#00695C"}].map(t=><button key={t.k} onClick={()=>sA(t.k)} style={{flex:"1 1 80px",padding:"12px 10px",borderRadius:14,border:app===t.k?"2px solid "+t.bg:"2px solid transparent",background:app===t.k?t.bg:"#fff",color:app===t.k?"#fff":"#78909C",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><span style={{fontSize:16}}>{t.e}</span>{t.l}</button>)}<button onClick={()=>sD(true)} style={{width:44,height:44,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:18}}>⬇</button><button onClick={()=>signOut(auth)} title="ログアウト" style={{width:44,height:44,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:14}}>🚪</button></div></div>
+    <div style={{maxWidth:720,margin:"0 auto",padding:"16px 16px 0"}}><div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>{[{k:"cases",l:"案件",e:"📋",bg:"#1A2A3A"},{k:"seminars",l:"セミナー",e:"🎤",bg:"#4527A0"},{k:"customers",l:"顧客",e:"🤝",bg:"#00695C"},{k:"tasks",l:"タスク",e:"✓",bg:"#1976D2"}].map(t=><button key={t.k} onClick={()=>sA(t.k)} style={{flex:"1 1 70px",padding:"11px 6px",borderRadius:14,border:app===t.k?"2px solid "+t.bg:"2px solid transparent",background:app===t.k?t.bg:"#fff",color:app===t.k?"#fff":"#78909C",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}><span style={{fontSize:15}}>{t.e}</span>{t.l}</button>)}<button onClick={()=>sD(true)} style={{width:42,height:42,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:17}}>⬇</button><button onClick={()=>signOut(auth)} title="ログアウト" style={{width:42,height:42,borderRadius:14,border:"none",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#90A4AE",fontSize:13}}>🚪</button></div></div>
     {app==="cases"&&<CaseMod/>}
     {app==="seminars"&&<SemMod/>}
     {app==="customers"&&<CustMod/>}
+    {app==="tasks"&&<TaskMod/>}
     <Md open={dp} onClose={()=>sD(false)}><DataP onClose={()=>sD(false)}/></Md>
   </div>;
 }
