@@ -499,11 +499,16 @@ function CustMod(){
   </>;
 }
 
+const TCOLS=[{k:0,l:"やること",bg:"#E3F2FD",t:"#0D47A1",hd:"#90CAF9"},{k:1,l:"進行中",bg:"#FFF3E0",t:"#E65100",hd:"#FFB74D"},{k:2,l:"確認待ち",bg:"#F3E5F5",t:"#4A148C",hd:"#CE93D8"},{k:3,l:"完了",bg:"#E8F5E9",t:"#1B5E20",hd:"#81C784"}];
+const getCol=t=>t.column!=null?t.column:(t.done?3:0);
+
 function TaskMod(){
   const[tasks,sT,ok]=useSt(TK);
-  const[newT,sNewT]=useState("");const[newD,sNewD]=useState("");const[exp,sExp]=useState({});const[showDone,sShowDone]=useState(false);const[filter,sFilter]=useState("all");
-  const add=()=>{if(!newT.trim())return;sT(p=>[...p,{id:uid(),title:newT.trim(),deadline:newD,memo:"",done:false,createdAt:new Date().toISOString(),order:p.length}]);sNewT("");sNewD("")};
-  const toggle=id=>sT(p=>p.map(t=>t.id===id?{...t,done:!t.done,completedAt:!t.done?new Date().toISOString():null}:t));
+  const[newT,sNewT]=useState("");const[newD,sNewD]=useState("");const[exp,sExp]=useState({});const[showDone,sShowDone]=useState(false);const[filter,sFilter]=useState("all");const[view,sView]=useState("list");const[dragId,sDragId]=useState(null);const[qc,sQc]=useState({col:null,val:"",deadline:""});
+  const add=()=>{if(!newT.trim())return;sT(p=>[...p,{id:uid(),title:newT.trim(),deadline:newD,memo:"",done:false,column:0,createdAt:new Date().toISOString(),order:p.length}]);sNewT("");sNewD("")};
+  const toggle=id=>sT(p=>p.map(t=>{if(t.id!==id)return t;const nd=!t.done;return{...t,done:nd,column:nd?3:0,completedAt:nd?new Date().toISOString():null}}));
+  const moveTo=(id,col)=>sT(p=>p.map(t=>t.id===id?{...t,column:col,done:col===3,completedAt:col===3?new Date().toISOString():(col===3?t.completedAt:null)}:t));
+  const qAdd=col=>{if(!qc.val.trim())return;sT(p=>[...p,{id:uid(),title:qc.val.trim(),deadline:qc.deadline,memo:"",done:col===3,column:col,createdAt:new Date().toISOString(),order:p.length,...(col===3?{completedAt:new Date().toISOString()}:{})}]);sQc({col,val:"",deadline:""})};
   const update=(id,k,v)=>sT(p=>p.map(t=>t.id===id?{...t,[k]:v}:t));
   const del=id=>sT(p=>p.filter(t=>t.id!==id));
   const clearDone=()=>sT(p=>p.filter(t=>!t.done));
@@ -524,8 +529,11 @@ function TaskMod(){
         </div>
       </div>
     </div>
-    <div style={{maxWidth:720,margin:"0 auto",padding:"20px 16px 40px"}}>
-      <div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:16,border:"1px solid #E3F2FD",boxShadow:"0 2px 8px rgba(25,118,210,.06)"}}>
+    <div style={{maxWidth:view==="board"?"none":720,margin:"0 auto",padding:"20px 16px 40px"}}>
+      <div style={{display:"flex",gap:6,marginBottom:14,justifyContent:"center"}}>
+        {[{k:"list",l:"📝 リスト"},{k:"board",l:"📊 ボード"}].map(v=><button key={v.k} onClick={()=>sView(v.k)} style={{padding:"8px 20px",borderRadius:10,border:view===v.k?"none":"1.5px solid #E0E6EB",background:view===v.k?"#1976D2":"#fff",color:view===v.k?"#fff":"#78909C",fontSize:13,fontWeight:700,cursor:"pointer"}}>{v.l}</button>)}
+      </div>
+      {view==="list"&&<><div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:16,border:"1px solid #E3F2FD",boxShadow:"0 2px 8px rgba(25,118,210,.06)"}}>
         <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
           <input style={{...is,flex:"1 1 200px",border:"1.5px solid #BBDEFB"}} value={newT} onChange={e=>sNewT(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")add()}} placeholder="+ 新しいタスクを追加"/>
           <input style={{...is,width:150,border:"1.5px solid #BBDEFB"}} type="date" value={newD} onChange={e=>sNewD(e.target.value)}/>
@@ -567,6 +575,44 @@ function TaskMod(){
           </div>
           <button onClick={()=>del(t.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:14}}>✕</button>
         </div>)}</div>}
+      </div>}</>}
+      {view==="board"&&<div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:12,WebkitOverflowScrolling:"touch"}}>
+        {TCOLS.map(col=>{const colTasks=tasks.filter(t=>getCol(t)===col.k).sort((a,b)=>{const ad=a.deadline||"9999-12-31",bd=b.deadline||"9999-12-31";if(ad!==bd)return ad.localeCompare(bd);return(a.order||0)-(b.order||0)});return <div key={col.k} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move"}} onDrop={e=>{e.preventDefault();if(dragId)moveTo(dragId,col.k);sDragId(null)}} style={{flex:"0 0 280px",background:col.bg,borderRadius:14,padding:12,border:"1.5px solid "+col.hd,display:"flex",flexDirection:"column",maxHeight:"calc(100vh - 240px)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,paddingBottom:8,borderBottom:"2px solid "+col.hd}}>
+            <span style={{fontSize:13,fontWeight:800,color:col.t}}>{col.l}</span>
+            <span style={{fontSize:11,fontWeight:700,color:col.t,background:"rgba(255,255,255,.7)",padding:"2px 9px",borderRadius:10}}>{colTasks.length}</span>
+          </div>
+          <div style={{flex:1,overflowY:"auto",minHeight:30,marginRight:-4,paddingRight:4}}>
+            {colTasks.length===0&&<div style={{fontSize:11,color:"#B0BEC5",textAlign:"center",padding:"16px 0"}}>タスクなし</div>}
+            {colTasks.map(t=>{const dy=dt(t.deadline);const urg=dy!==null&&dy<=0;const warn=dy!==null&&dy>0&&dy<=3;return <div key={t.id} draggable onDragStart={e=>{e.dataTransfer.effectAllowed="move";sDragId(t.id)}} onDragEnd={()=>sDragId(null)} onClick={()=>sExp(e=>({...e,[t.id]:!e[t.id]}))} style={{background:"#fff",borderRadius:10,padding:"10px 12px",marginBottom:8,cursor:"grab",border:urg?"1.5px solid #EF9A9A":warn?"1.5px solid #FFCC80":"1px solid "+col.hd,opacity:dragId===t.id?.4:1,boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
+              <div style={{fontSize:13,fontWeight:600,color:"#1A2A3A",textDecoration:col.k===3?"line-through":"none",opacity:col.k===3?.6:1,wordBreak:"break-word"}}>{t.title}</div>
+              {t.deadline&&<div style={{fontSize:11,color:urg?"#C62828":warn?"#E65100":"#78909C",fontWeight:600,marginTop:6,display:"flex",alignItems:"center",gap:6}}>📅 {fd(t.deadline)}<DB d={t.deadline}/></div>}
+              {t.memo&&exp[t.id]&&<div style={{fontSize:11,color:"#546E7A",marginTop:6,whiteSpace:"pre-line",padding:"6px 8px",background:"#FAFAFA",borderRadius:6}}>{t.memo}</div>}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8,gap:4}}>
+                <div style={{display:"flex",gap:3}}>
+                  {col.k>0&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k-1)}} title="左へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>◀</button>}
+                  {col.k<3&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k+1)}} title="右へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>}
+                </div>
+                <button onClick={e=>{e.stopPropagation();if(confirm("削除しますか？"))del(t.id)}} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:12,padding:"2px 6px"}}>✕</button>
+              </div>
+              {exp[t.id]&&<div style={{marginTop:8,paddingTop:8,borderTop:"1px dashed "+col.hd}}>
+                <input style={{...is,fontSize:12,padding:"6px 10px",marginBottom:6}} value={t.title} onChange={e=>update(t.id,"title",e.target.value)} onClick={e=>e.stopPropagation()}/>
+                <input style={{...is,fontSize:12,padding:"6px 10px",marginBottom:6}} type="date" value={t.deadline||""} onChange={e=>update(t.id,"deadline",e.target.value)} onClick={e=>e.stopPropagation()}/>
+                <textarea style={{...is,fontSize:12,padding:"6px 10px",minHeight:40,resize:"vertical"}} value={t.memo||""} onChange={e=>update(t.id,"memo",e.target.value)} onClick={e=>e.stopPropagation()} placeholder="メモ"/>
+              </div>}
+            </div>})}
+          </div>
+          <div style={{marginTop:8,flexShrink:0}}>
+            {qc.col===col.k?<div>
+              <input autoFocus style={{...is,fontSize:12,padding:"8px 10px",marginBottom:6}} value={qc.val} onChange={e=>sQc({...qc,val:e.target.value})} onKeyDown={e=>{if(e.key==="Enter")qAdd(col.k);if(e.key==="Escape")sQc({col:null,val:"",deadline:""})}} placeholder="タスク名"/>
+              <input style={{...is,fontSize:12,padding:"8px 10px",marginBottom:6}} type="date" value={qc.deadline} onChange={e=>sQc({...qc,deadline:e.target.value})}/>
+              <div style={{display:"flex",gap:4}}>
+                <button onClick={()=>qAdd(col.k)} disabled={!qc.val.trim()} style={{flex:1,padding:"7px",borderRadius:6,border:"none",background:qc.val.trim()?col.t:"#B0BEC5",color:"#fff",fontSize:11,fontWeight:700,cursor:qc.val.trim()?"pointer":"default"}}>追加</button>
+                <button onClick={()=>sQc({col:null,val:"",deadline:""})} style={{padding:"7px 10px",borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer"}}>×</button>
+              </div>
+            </div>:<button onClick={()=>sQc({col:col.k,val:"",deadline:""})} style={{width:"100%",padding:"8px",borderRadius:8,border:"1.5px dashed "+col.hd,background:"rgba(255,255,255,.5)",fontSize:12,color:col.t,fontWeight:600,cursor:"pointer"}}>+ 追加</button>}
+          </div>
+        </div>})}
       </div>}
     </div>
   </>;
