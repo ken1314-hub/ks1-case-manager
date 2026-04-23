@@ -41,11 +41,11 @@ function useSt(key){
     const nextMap=new Map(next.map(i=>[i.id,i]));
     for(const[id,item]of nextMap){
       if(!prevMap.has(id)||JSON.stringify(prevMap.get(id))!==JSON.stringify(item)){
-        setDoc(doc(db,collName,id),item);
+        setDoc(doc(db,collName,id),item).catch(e=>{console.error("setDoc failed",collName,id,e);alert("保存失敗: "+collName+"\n"+e.message+"\n\nFirestoreのセキュリティルールで "+collName+" コレクションの書き込みが許可されているか確認してください。")});
       }
     }
     for(const[id]of prevMap){
-      if(!nextMap.has(id))deleteDoc(doc(db,collName,id));
+      if(!nextMap.has(id))deleteDoc(doc(db,collName,id)).catch(e=>{console.error("deleteDoc failed",collName,id,e);alert("削除失敗: "+collName+"\n"+e.message)});
     }
   },[key]);
   return[d,setData,ok];
