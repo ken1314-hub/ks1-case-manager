@@ -500,7 +500,7 @@ function CustMod(){
 }
 
 const TCOLS=[{k:0,l:"やること",bg:"#E3F2FD",t:"#0D47A1",hd:"#90CAF9"},{k:1,l:"進行中",bg:"#FFF3E0",t:"#E65100",hd:"#FFB74D"},{k:2,l:"確認待ち",bg:"#F3E5F5",t:"#4A148C",hd:"#CE93D8"},{k:3,l:"完了",bg:"#E8F5E9",t:"#1B5E20",hd:"#81C784"}];
-const CCOLS=[{k:"案件",l:"📋 案件",bg:"#ECEFF1",t:"#1A2A3A",hd:"#B0BEC5"},{k:"セミナー",l:"🎤 セミナー",bg:"#EDE7F6",t:"#4527A0",hd:"#B39DDB"},{k:"請求書",l:"💰 請求書",bg:"#FFF8E1",t:"#F57F17",hd:"#FFD54F"},{k:"プライベート",l:"🌿 プライベート",bg:"#E8F5E9",t:"#1B5E20",hd:"#A5D6A7"}];
+const CCOLS=[{k:"案件",l:"📋 案件",bg:"#ECEFF1",t:"#1A2A3A",hd:"#B0BEC5"},{k:"セミナー",l:"🎤 セミナー",bg:"#EDE7F6",t:"#4527A0",hd:"#B39DDB"},{k:"請求書",l:"💰 請求書",bg:"#FFF8E1",t:"#F57F17",hd:"#FFD54F"},{k:"プライベート",l:"🌿 プライベート",bg:"#E8F5E9",t:"#1B5E20",hd:"#A5D6A7"},{k:"その他",l:"📌 その他",bg:"#FCE4EC",t:"#880E4F",hd:"#F48FB1"}];
 const getCol=t=>t.column!=null?t.column:(t.done?3:0);
 const getCat=t=>t.category||(t.source==="案件"?"案件":t.source==="セミナー"?"セミナー":"プライベート");
 
