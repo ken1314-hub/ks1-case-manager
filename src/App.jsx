@@ -500,18 +500,21 @@ function CustMod(){
 }
 
 const TCOLS=[{k:0,l:"やること",bg:"#E3F2FD",t:"#0D47A1",hd:"#90CAF9"},{k:1,l:"進行中",bg:"#FFF3E0",t:"#E65100",hd:"#FFB74D"},{k:2,l:"確認待ち",bg:"#F3E5F5",t:"#4A148C",hd:"#CE93D8"},{k:3,l:"完了",bg:"#E8F5E9",t:"#1B5E20",hd:"#81C784"}];
+const CCOLS=[{k:"案件",l:"📋 案件",bg:"#ECEFF1",t:"#1A2A3A",hd:"#B0BEC5"},{k:"セミナー",l:"🎤 セミナー",bg:"#EDE7F6",t:"#4527A0",hd:"#B39DDB"},{k:"請求書",l:"💰 請求書",bg:"#FFF8E1",t:"#F57F17",hd:"#FFD54F"},{k:"プライベート",l:"🌿 プライベート",bg:"#E8F5E9",t:"#1B5E20",hd:"#A5D6A7"}];
 const getCol=t=>t.column!=null?t.column:(t.done?3:0);
+const getCat=t=>t.category||(t.source==="案件"?"案件":t.source==="セミナー"?"セミナー":"プライベート");
 
 function TaskMod(){
   const[tasks,sT,ok]=useSt(TK);
   const[cases,sC]=useSt(CK);
   const[sems,sS]=useSt(SK);
-  const[newT,sNewT]=useState("");const[newD,sNewD]=useState("");const[exp,sExp]=useState({});const[showDone,sShowDone]=useState(false);const[showArc,sShowArc]=useState(false);const[filter,sFilter]=useState("all");const[view,sView]=useState("list");const[dragId,sDragId]=useState(null);const[qc,sQc]=useState({col:null,val:"",deadline:""});
-  const add=()=>{if(!newT.trim())return;sT(p=>[...p,{id:uid(),title:newT.trim(),deadline:newD,memo:"",done:false,column:0,createdAt:new Date().toISOString(),order:p.length}]);sNewT("");sNewD("")};
+  const[newT,sNewT]=useState("");const[newD,sNewD]=useState("");const[newCat,sNewCat]=useState("プライベート");const[exp,sExp]=useState({});const[showDone,sShowDone]=useState(false);const[showArc,sShowArc]=useState(false);const[filter,sFilter]=useState("all");const[view,sView]=useState("list");const[boardMode,sBoardMode]=useState("status");const[dragId,sDragId]=useState(null);const[qc,sQc]=useState({col:null,val:"",deadline:""});
+  const add=()=>{if(!newT.trim())return;sT(p=>[...p,{id:uid(),title:newT.trim(),deadline:newD,memo:"",done:false,column:0,category:newCat,createdAt:new Date().toISOString(),order:p.length}]);sNewT("");sNewD("")};
   const toggle=id=>{if(id.startsWith("case:")||id.startsWith("sem:"))return toggleVirtual(id);sT(p=>p.map(t=>{if(t.id!==id)return t;const nd=!t.done;return{...t,done:nd,column:nd?3:0,completedAt:nd?new Date().toISOString():null}}))};
   const toggleVirtual=id=>{const[type,realId]=id.split(":");if(type==="case"){sC(p=>p.map(c=>{if(c.id!==realId||!c.nextAction)return c;return{...c,actionLog:[...(c.actionLog||[]),{action:c.nextAction,deadline:c.nextActionDeadline||"",memo:c.nextActionMemo||"",completedAt:new Date().toISOString()}],nextAction:"",nextActionDeadline:"",nextActionMemo:""}}))}else{sS(p=>p.map(s=>{if(s.id!==realId||!s.nextAction)return s;return{...s,actionLog:[...(s.actionLog||[]),{action:s.nextAction,deadline:s.nextActionDeadline||"",memo:s.nextActionMemo||"",completedAt:new Date().toISOString()}],nextAction:"",nextActionDeadline:"",nextActionMemo:""}}))}};
   const moveTo=(id,col)=>{if(id.startsWith("case:")||id.startsWith("sem:")){if(col===3)toggleVirtual(id);return}sT(p=>p.map(t=>t.id===id?{...t,column:col,done:col===3,completedAt:col===3?new Date().toISOString():(col===3?t.completedAt:null)}:t))};
-  const qAdd=col=>{if(!qc.val.trim())return;sT(p=>[...p,{id:uid(),title:qc.val.trim(),deadline:qc.deadline,memo:"",done:col===3,column:col,createdAt:new Date().toISOString(),order:p.length,...(col===3?{completedAt:new Date().toISOString()}:{})}]);sQc({col,val:"",deadline:""})};
+  const moveToCat=(id,cat)=>{if(id.startsWith("case:")||id.startsWith("sem:"))return;sT(p=>p.map(t=>t.id===id?{...t,category:cat}:t))};
+  const qAdd=col=>{if(!qc.val.trim())return;const isCat=boardMode==="category";sT(p=>[...p,{id:uid(),title:qc.val.trim(),deadline:qc.deadline,memo:"",done:isCat?false:col===3,column:isCat?0:col,category:isCat?col:newCat,createdAt:new Date().toISOString(),order:p.length,...(!isCat&&col===3?{completedAt:new Date().toISOString()}:{})}]);sQc({col,val:"",deadline:""})};
   const update=(id,k,v)=>{if(id.startsWith("case:")||id.startsWith("sem:"))return;sT(p=>p.map(t=>t.id===id?{...t,[k]:v}:t))};
   const del=id=>{if(id.startsWith("case:")||id.startsWith("sem:"))return;sT(p=>p.filter(t=>t.id!==id))};
   const archive=id=>sT(p=>p.map(t=>t.id===id?{...t,archived:true,archivedAt:new Date().toISOString()}:t));
@@ -547,7 +550,8 @@ function TaskMod(){
       {view==="list"&&<><div style={{background:"#fff",borderRadius:14,padding:"12px 14px",marginBottom:16,border:"1px solid #E3F2FD",boxShadow:"0 2px 8px rgba(25,118,210,.06)"}}>
         <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
           <input style={{...is,flex:"1 1 200px",border:"1.5px solid #BBDEFB"}} value={newT} onChange={e=>sNewT(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")add()}} placeholder="+ 新しいタスクを追加"/>
-          <input style={{...is,width:150,border:"1.5px solid #BBDEFB"}} type="date" value={newD} onChange={e=>sNewD(e.target.value)}/>
+          <input style={{...is,width:140,border:"1.5px solid #BBDEFB"}} type="date" value={newD} onChange={e=>sNewD(e.target.value)}/>
+          <select style={{...is,width:130,border:"1.5px solid #BBDEFB",cursor:"pointer"}} value={newCat} onChange={e=>sNewCat(e.target.value)}>{CCOLS.map(c=><option key={c.k} value={c.k}>{c.l}</option>)}</select>
           <button onClick={add} disabled={!newT.trim()} style={{padding:"10px 20px",borderRadius:10,border:"none",background:newT.trim()?"#1976D2":"#B0BEC5",color:"#fff",fontSize:13,fontWeight:700,cursor:newT.trim()?"pointer":"default"}}>追加</button>
         </div>
       </div>
@@ -559,7 +563,7 @@ function TaskMod(){
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer"}} onClick={()=>sExp(e=>({...e,[t.id]:!e[t.id]}))}>
             <button onClick={e=>{e.stopPropagation();toggle(t.id)}} style={{width:22,height:22,borderRadius:"50%",border:"2px solid #1976D2",background:"#fff",cursor:"pointer",flexShrink:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{color:"#1976D2",fontSize:14,fontWeight:700,visibility:"hidden"}}>✓</span></button>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>{isV&&<span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:8,background:t.sourceColor,color:"#fff"}}>{t.source}</span>}<div style={{fontSize:14,fontWeight:600,color:"#1A2A3A"}}>{t.title}</div></div>
+              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>{isV?<span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:8,background:t.sourceColor,color:"#fff"}}>{t.source}</span>:(()=>{const c=CCOLS.find(x=>x.k===getCat(t));return c?<span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:8,background:c.hd,color:c.t}}>{c.l}</span>:null})()}<div style={{fontSize:14,fontWeight:600,color:"#1A2A3A"}}>{t.title}</div></div>
               {isV&&<div style={{fontSize:10,color:"#90A4AE",marginTop:2}}>📎 {t.sourceName}</div>}
               {t.deadline&&<div style={{display:"flex",alignItems:"center",gap:8,marginTop:2}}><span style={{fontSize:11,color:urg?"#C62828":warn?"#E65100":"#78909C",fontWeight:600}}>📅 {fd(t.deadline)}</span><DB d={t.deadline}/></div>}
               {t.memo&&!open&&<div style={{fontSize:11,color:"#90A4AE",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.memo}</div>}
@@ -568,7 +572,7 @@ function TaskMod(){
           </div>
           {open&&<div style={{padding:"0 14px 14px 46px",borderTop:"1px solid #F5F5F5"}}>
             {isV?<div style={{padding:"10px 0"}}>{t.memo&&<div style={{fontSize:12,color:"#546E7A",whiteSpace:"pre-line",padding:"8px 10px",background:"#FAFAFA",borderRadius:6,marginBottom:8}}>{t.memo}</div>}<div style={{fontSize:11,color:"#90A4AE"}}>編集は{t.source}画面から行ってください</div></div>:<><input style={{...is,marginTop:10,marginBottom:8}} value={t.title} onChange={e=>update(t.id,"title",e.target.value)} placeholder="タイトル"/>
-            <input style={{...is,marginBottom:8}} type="date" value={t.deadline||""} onChange={e=>update(t.id,"deadline",e.target.value)}/>
+            <div style={{display:"flex",gap:8,marginBottom:8}}><input style={{...is,flex:1}} type="date" value={t.deadline||""} onChange={e=>update(t.id,"deadline",e.target.value)}/><select style={{...is,width:150,cursor:"pointer"}} value={getCat(t)} onChange={e=>update(t.id,"category",e.target.value)}>{CCOLS.map(c=><option key={c.k} value={c.k}>{c.l}</option>)}</select></div>
             <textarea style={{...is,minHeight:50,resize:"vertical",marginBottom:8}} value={t.memo||""} onChange={e=>update(t.id,"memo",e.target.value)} placeholder="メモ"/>
             <button onClick={()=>del(t.id)} style={{padding:"6px 14px",borderRadius:8,border:"1px solid #FFCDD2",background:"#fff",color:"#C62828",fontSize:11,fontWeight:600,cursor:"pointer"}}>🗑 削除</button></>}
           </div>}
@@ -604,8 +608,11 @@ function TaskMod(){
           <button onClick={()=>{if(confirm("完全に削除しますか？"))del(t.id)}} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:14}}>✕</button>
         </div>)}</div>}
       </div>}</>}
-      {view==="board"&&<div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:12,WebkitOverflowScrolling:"touch"}}>
-        {TCOLS.map(col=>{const allBoard=[...tasks.filter(t=>!t.archived),...virtualTasks];const colTasks=allBoard.filter(t=>getCol(t)===col.k).sort((a,b)=>{const ad=a.deadline||"9999-12-31",bd=b.deadline||"9999-12-31";if(ad!==bd)return ad.localeCompare(bd);return(a.order||0)-(b.order||0)});return <div key={col.k} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move"}} onDrop={e=>{e.preventDefault();if(dragId)moveTo(dragId,col.k);sDragId(null)}} style={{flex:"0 0 280px",background:col.bg,borderRadius:14,padding:12,border:"1.5px solid "+col.hd,display:"flex",flexDirection:"column",maxHeight:"calc(100vh - 240px)"}}>
+      {view==="board"&&<><div style={{display:"flex",gap:6,marginBottom:14,justifyContent:"center"}}>
+        {[{k:"status",l:"ステータス別"},{k:"category",l:"カテゴリ別"}].map(m=><button key={m.k} onClick={()=>{sBoardMode(m.k);sQc({col:null,val:"",deadline:""})}} style={{padding:"6px 14px",borderRadius:20,border:boardMode===m.k?"none":"1.5px solid #E0E6EB",background:boardMode===m.k?"#546E7A":"#fff",color:boardMode===m.k?"#fff":"#78909C",fontSize:11,fontWeight:700,cursor:"pointer"}}>{m.l}</button>)}
+      </div>
+      <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:12,WebkitOverflowScrolling:"touch"}}>
+        {(boardMode==="category"?CCOLS:TCOLS).map(col=>{const allBoard=[...tasks.filter(t=>!t.archived),...virtualTasks];const colTasks=allBoard.filter(t=>boardMode==="category"?getCat(t)===col.k:getCol(t)===col.k).sort((a,b)=>{const ad=a.deadline||"9999-12-31",bd=b.deadline||"9999-12-31";if(ad!==bd)return ad.localeCompare(bd);return(a.order||0)-(b.order||0)});return <div key={col.k} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move"}} onDrop={e=>{e.preventDefault();if(dragId){if(boardMode==="category")moveToCat(dragId,col.k);else moveTo(dragId,col.k)}sDragId(null)}} style={{flex:"0 0 280px",background:col.bg,borderRadius:14,padding:12,border:"1.5px solid "+col.hd,display:"flex",flexDirection:"column",maxHeight:"calc(100vh - 240px)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,paddingBottom:8,borderBottom:"2px solid "+col.hd}}>
             <span style={{fontSize:13,fontWeight:800,color:col.t}}>{col.l}</span>
             <span style={{fontSize:11,fontWeight:700,color:col.t,background:"rgba(255,255,255,.7)",padding:"2px 9px",borderRadius:10}}>{colTasks.length}</span>
@@ -614,14 +621,16 @@ function TaskMod(){
             {colTasks.length===0&&<div style={{fontSize:11,color:"#B0BEC5",textAlign:"center",padding:"16px 0"}}>タスクなし</div>}
             {colTasks.map(t=>{const dy=dt(t.deadline);const urg=dy!==null&&dy<=0;const warn=dy!==null&&dy>0&&dy<=3;const isV=!!t.source;return <div key={t.id} draggable={!isV} onDragStart={e=>{if(isV){e.preventDefault();return}e.dataTransfer.effectAllowed="move";sDragId(t.id)}} onDragEnd={()=>sDragId(null)} onClick={()=>sExp(e=>({...e,[t.id]:!e[t.id]}))} style={{background:"#fff",borderRadius:10,padding:"10px 12px",marginBottom:8,cursor:isV?"pointer":"grab",border:urg?"1.5px solid #EF9A9A":warn?"1.5px solid #FFCC80":"1px solid "+col.hd,opacity:dragId===t.id?.4:1,boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
               {isV&&<div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}><span style={{fontSize:9,fontWeight:700,padding:"2px 6px",borderRadius:6,background:t.sourceColor,color:"#fff"}}>{t.source}</span><span style={{fontSize:9,color:"#90A4AE",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{t.sourceName}</span></div>}
-              <div style={{fontSize:13,fontWeight:600,color:"#1A2A3A",textDecoration:col.k===3?"line-through":"none",opacity:col.k===3?.6:1,wordBreak:"break-word"}}>{t.title}</div>
+              <div style={{fontSize:13,fontWeight:600,color:"#1A2A3A",textDecoration:boardMode==="status"&&col.k===3?"line-through":"none",opacity:boardMode==="status"&&col.k===3?.6:1,wordBreak:"break-word"}}>{t.title}</div>
               {t.deadline&&<div style={{fontSize:11,color:urg?"#C62828":warn?"#E65100":"#78909C",fontWeight:600,marginTop:6,display:"flex",alignItems:"center",gap:6}}>📅 {fd(t.deadline)}<DB d={t.deadline}/></div>}
               {t.memo&&exp[t.id]&&<div style={{fontSize:11,color:"#546E7A",marginTop:6,whiteSpace:"pre-line",padding:"6px 8px",background:"#FAFAFA",borderRadius:6}}>{t.memo}</div>}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8,gap:4}}>
                 <div style={{display:"flex",gap:3}}>
-                  {!isV&&col.k>0&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k-1)}} title="左へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>◀</button>}
-                  {!isV&&col.k<3&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k+1)}} title="右へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>}
-                  {isV&&col.k===0&&<button onClick={e=>{e.stopPropagation();toggleVirtual(t.id)}} title="完了してログに記録" style={{padding:"2px 8px",height:22,borderRadius:6,border:"1px solid #81C784",background:"#fff",fontSize:10,cursor:"pointer",color:"#1B5E20",fontWeight:700}}>✓ 完了</button>}
+                  {!isV&&boardMode==="status"&&col.k>0&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k-1)}} title="左へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>◀</button>}
+                  {!isV&&boardMode==="status"&&col.k<3&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k+1)}} title="右へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>}
+                  {!isV&&boardMode==="category"&&<select onClick={e=>e.stopPropagation()} onChange={e=>moveToCat(t.id,e.target.value)} value={getCat(t)} style={{fontSize:10,padding:"2px 4px",borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",color:"#546E7A",cursor:"pointer",height:22}}>{CCOLS.map(c=><option key={c.k} value={c.k}>{c.k}</option>)}</select>}
+                  {!isV&&boardMode==="category"&&!t.done&&<button onClick={e=>{e.stopPropagation();sT(p=>p.map(x=>x.id===t.id?{...x,done:true,column:3,completedAt:new Date().toISOString()}:x))}} title="完了" style={{padding:"2px 8px",height:22,borderRadius:6,border:"1px solid #81C784",background:"#fff",fontSize:10,cursor:"pointer",color:"#1B5E20",fontWeight:700}}>✓</button>}
+                  {isV&&<button onClick={e=>{e.stopPropagation();toggleVirtual(t.id)}} title="完了してログに記録" style={{padding:"2px 8px",height:22,borderRadius:6,border:"1px solid #81C784",background:"#fff",fontSize:10,cursor:"pointer",color:"#1B5E20",fontWeight:700}}>✓ 完了</button>}
                 </div>
                 {!isV&&<button onClick={e=>{e.stopPropagation();if(confirm("削除しますか？"))del(t.id)}} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:12,padding:"2px 6px"}}>✕</button>}
               </div>
@@ -643,7 +652,7 @@ function TaskMod(){
             </div>:<button onClick={()=>sQc({col:col.k,val:"",deadline:""})} style={{width:"100%",padding:"8px",borderRadius:8,border:"1.5px dashed "+col.hd,background:"rgba(255,255,255,.5)",fontSize:12,color:col.t,fontWeight:600,cursor:"pointer"}}>+ 追加</button>}
           </div>
         </div>})}
-      </div>}
+      </div></>}
     </div>
   </>;
 }
