@@ -504,16 +504,27 @@ const getCol=t=>t.column!=null?t.column:(t.done?3:0);
 
 function TaskMod(){
   const[tasks,sT,ok]=useSt(TK);
-  const[newT,sNewT]=useState("");const[newD,sNewD]=useState("");const[exp,sExp]=useState({});const[showDone,sShowDone]=useState(false);const[filter,sFilter]=useState("all");const[view,sView]=useState("list");const[dragId,sDragId]=useState(null);const[qc,sQc]=useState({col:null,val:"",deadline:""});
+  const[cases,sC]=useSt(CK);
+  const[sems,sS]=useSt(SK);
+  const[newT,sNewT]=useState("");const[newD,sNewD]=useState("");const[exp,sExp]=useState({});const[showDone,sShowDone]=useState(false);const[showArc,sShowArc]=useState(false);const[filter,sFilter]=useState("all");const[view,sView]=useState("list");const[dragId,sDragId]=useState(null);const[qc,sQc]=useState({col:null,val:"",deadline:""});
   const add=()=>{if(!newT.trim())return;sT(p=>[...p,{id:uid(),title:newT.trim(),deadline:newD,memo:"",done:false,column:0,createdAt:new Date().toISOString(),order:p.length}]);sNewT("");sNewD("")};
-  const toggle=id=>sT(p=>p.map(t=>{if(t.id!==id)return t;const nd=!t.done;return{...t,done:nd,column:nd?3:0,completedAt:nd?new Date().toISOString():null}}));
-  const moveTo=(id,col)=>sT(p=>p.map(t=>t.id===id?{...t,column:col,done:col===3,completedAt:col===3?new Date().toISOString():(col===3?t.completedAt:null)}:t));
+  const toggle=id=>{if(id.startsWith("case:")||id.startsWith("sem:"))return toggleVirtual(id);sT(p=>p.map(t=>{if(t.id!==id)return t;const nd=!t.done;return{...t,done:nd,column:nd?3:0,completedAt:nd?new Date().toISOString():null}}))};
+  const toggleVirtual=id=>{const[type,realId]=id.split(":");if(type==="case"){sC(p=>p.map(c=>{if(c.id!==realId||!c.nextAction)return c;return{...c,actionLog:[...(c.actionLog||[]),{action:c.nextAction,deadline:c.nextActionDeadline||"",memo:c.nextActionMemo||"",completedAt:new Date().toISOString()}],nextAction:"",nextActionDeadline:"",nextActionMemo:""}}))}else{sS(p=>p.map(s=>{if(s.id!==realId||!s.nextAction)return s;return{...s,actionLog:[...(s.actionLog||[]),{action:s.nextAction,deadline:s.nextActionDeadline||"",memo:s.nextActionMemo||"",completedAt:new Date().toISOString()}],nextAction:"",nextActionDeadline:"",nextActionMemo:""}}))}};
+  const moveTo=(id,col)=>{if(id.startsWith("case:")||id.startsWith("sem:")){if(col===3)toggleVirtual(id);return}sT(p=>p.map(t=>t.id===id?{...t,column:col,done:col===3,completedAt:col===3?new Date().toISOString():(col===3?t.completedAt:null)}:t))};
   const qAdd=col=>{if(!qc.val.trim())return;sT(p=>[...p,{id:uid(),title:qc.val.trim(),deadline:qc.deadline,memo:"",done:col===3,column:col,createdAt:new Date().toISOString(),order:p.length,...(col===3?{completedAt:new Date().toISOString()}:{})}]);sQc({col,val:"",deadline:""})};
-  const update=(id,k,v)=>sT(p=>p.map(t=>t.id===id?{...t,[k]:v}:t));
-  const del=id=>sT(p=>p.filter(t=>t.id!==id));
-  const clearDone=()=>sT(p=>p.filter(t=>!t.done));
-  const active=tasks.filter(t=>!t.done);
-  const done=tasks.filter(t=>t.done).sort((a,b)=>(b.completedAt||"").localeCompare(a.completedAt||""));
+  const update=(id,k,v)=>{if(id.startsWith("case:")||id.startsWith("sem:"))return;sT(p=>p.map(t=>t.id===id?{...t,[k]:v}:t))};
+  const del=id=>{if(id.startsWith("case:")||id.startsWith("sem:"))return;sT(p=>p.filter(t=>t.id!==id))};
+  const archive=id=>sT(p=>p.map(t=>t.id===id?{...t,archived:true,archivedAt:new Date().toISOString()}:t));
+  const unarchive=id=>sT(p=>p.map(t=>t.id===id?{...t,archived:false,archivedAt:null}:t));
+  const clearDone=()=>sT(p=>p.filter(t=>!t.done||t.archived));
+  const virtualTasks=[
+    ...cases.filter(c=>!isDone(c.status)&&c.nextAction&&c.nextAction.trim()).map(c=>({id:"case:"+c.id,title:c.nextAction,deadline:c.nextActionDeadline||"",memo:c.nextActionMemo||"",done:false,column:0,source:"案件",sourceName:c.name,sourceColor:"#1A2A3A"})),
+    ...sems.filter(s=>!isDone(s.status)&&s.nextAction&&s.nextAction.trim()).map(s=>({id:"sem:"+s.id,title:s.nextAction,deadline:s.nextActionDeadline||"",memo:s.nextActionMemo||"",done:false,column:0,source:"セミナー",sourceName:s.name,sourceColor:"#4527A0"}))
+  ];
+  const allTasks=[...tasks.filter(t=>!t.archived),...virtualTasks];
+  const active=allTasks.filter(t=>!t.done);
+  const done=allTasks.filter(t=>t.done).sort((a,b)=>(b.completedAt||"").localeCompare(a.completedAt||""));
+  const archived=tasks.filter(t=>t.archived).sort((a,b)=>(b.archivedAt||"").localeCompare(a.archivedAt||""));
   const filtered=active.filter(t=>{if(filter==="today"){const dy=dt(t.deadline);return dy!==null&&dy<=0}if(filter==="week"){const dy=dt(t.deadline);return dy!==null&&dy<=7}if(filter==="nodate")return !t.deadline;return true}).sort((a,b)=>{const ad=a.deadline||"9999-12-31",bd=b.deadline||"9999-12-31";if(ad!==bd)return ad.localeCompare(bd);return(a.order||0)-(b.order||0)});
   const cnt={all:active.length,today:active.filter(t=>{const dy=dt(t.deadline);return dy!==null&&dy<=0}).length,week:active.filter(t=>{const dy=dt(t.deadline);return dy!==null&&dy<=7}).length,nodate:active.filter(t=>!t.deadline).length};
   if(!ok)return <div style={{textAlign:"center",padding:60,color:"#90A4AE"}}>読み込み中…</div>;
@@ -544,58 +555,77 @@ function TaskMod(){
         {[{k:"all",l:"すべて",c:cnt.all},{k:"today",l:"今日まで",c:cnt.today},{k:"week",l:"今週",c:cnt.week},{k:"nodate",l:"期限なし",c:cnt.nodate}].map(t=><button key={t.k} onClick={()=>sFilter(t.k)} style={{padding:"7px 14px",borderRadius:20,border:filter===t.k?"none":"1.5px solid #E0E6EB",background:filter===t.k?"#1976D2":"#fff",color:filter===t.k?"#fff":"#78909C",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>{t.l}<span style={{fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:10,background:filter===t.k?"rgba(255,255,255,.2)":"#ECEFF1",color:filter===t.k?"#fff":"#546E7A"}}>{t.c}</span></button>)}
       </div>
       {filtered.length===0?<div style={{textAlign:"center",padding:40,color:"#B0BEC5"}}>{active.length===0?"タスクはありません。追加してみましょう！":"該当するタスクがありません"}</div>:<div>
-        {filtered.map(t=>{const dy=dt(t.deadline);const urg=dy!==null&&dy<=0;const warn=dy!==null&&dy>0&&dy<=3;const open=exp[t.id];return <div key={t.id} style={{background:"#fff",borderRadius:12,marginBottom:8,border:urg?"1.5px solid #EF9A9A":warn?"1.5px solid #FFCC80":"1px solid #ECEFF1",overflow:"hidden",transition:"all .15s"}}>
+        {filtered.map(t=>{const dy=dt(t.deadline);const urg=dy!==null&&dy<=0;const warn=dy!==null&&dy>0&&dy<=3;const open=exp[t.id];const isV=!!t.source;return <div key={t.id} style={{background:"#fff",borderRadius:12,marginBottom:8,border:urg?"1.5px solid #EF9A9A":warn?"1.5px solid #FFCC80":"1px solid #ECEFF1",overflow:"hidden",transition:"all .15s"}}>
           <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer"}} onClick={()=>sExp(e=>({...e,[t.id]:!e[t.id]}))}>
             <button onClick={e=>{e.stopPropagation();toggle(t.id)}} style={{width:22,height:22,borderRadius:"50%",border:"2px solid #1976D2",background:"#fff",cursor:"pointer",flexShrink:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{color:"#1976D2",fontSize:14,fontWeight:700,visibility:"hidden"}}>✓</span></button>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:14,fontWeight:600,color:"#1A2A3A"}}>{t.title}</div>
+              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>{isV&&<span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:8,background:t.sourceColor,color:"#fff"}}>{t.source}</span>}<div style={{fontSize:14,fontWeight:600,color:"#1A2A3A"}}>{t.title}</div></div>
+              {isV&&<div style={{fontSize:10,color:"#90A4AE",marginTop:2}}>📎 {t.sourceName}</div>}
               {t.deadline&&<div style={{display:"flex",alignItems:"center",gap:8,marginTop:2}}><span style={{fontSize:11,color:urg?"#C62828":warn?"#E65100":"#78909C",fontWeight:600}}>📅 {fd(t.deadline)}</span><DB d={t.deadline}/></div>}
               {t.memo&&!open&&<div style={{fontSize:11,color:"#90A4AE",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.memo}</div>}
             </div>
             <span style={{color:"#B0BEC5",fontSize:12}}>{open?"▲":"▼"}</span>
           </div>
           {open&&<div style={{padding:"0 14px 14px 46px",borderTop:"1px solid #F5F5F5"}}>
-            <input style={{...is,marginTop:10,marginBottom:8}} value={t.title} onChange={e=>update(t.id,"title",e.target.value)} placeholder="タイトル"/>
+            {isV?<div style={{padding:"10px 0"}}>{t.memo&&<div style={{fontSize:12,color:"#546E7A",whiteSpace:"pre-line",padding:"8px 10px",background:"#FAFAFA",borderRadius:6,marginBottom:8}}>{t.memo}</div>}<div style={{fontSize:11,color:"#90A4AE"}}>編集は{t.source}画面から行ってください</div></div>:<><input style={{...is,marginTop:10,marginBottom:8}} value={t.title} onChange={e=>update(t.id,"title",e.target.value)} placeholder="タイトル"/>
             <input style={{...is,marginBottom:8}} type="date" value={t.deadline||""} onChange={e=>update(t.id,"deadline",e.target.value)}/>
             <textarea style={{...is,minHeight:50,resize:"vertical",marginBottom:8}} value={t.memo||""} onChange={e=>update(t.id,"memo",e.target.value)} placeholder="メモ"/>
-            <button onClick={()=>del(t.id)} style={{padding:"6px 14px",borderRadius:8,border:"1px solid #FFCDD2",background:"#fff",color:"#C62828",fontSize:11,fontWeight:600,cursor:"pointer"}}>🗑 削除</button>
+            <button onClick={()=>del(t.id)} style={{padding:"6px 14px",borderRadius:8,border:"1px solid #FFCDD2",background:"#fff",color:"#C62828",fontSize:11,fontWeight:600,cursor:"pointer"}}>🗑 削除</button></>}
           </div>}
         </div>})}
       </div>}
       {done.length>0&&<div style={{marginTop:24,paddingTop:16,borderTop:"1px solid #ECEFF1"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
           <button onClick={()=>sShowDone(!showDone)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#78909C",display:"flex",alignItems:"center",gap:6,padding:0}}>{showDone?"▼":"▶"} 完了済み ({done.length}件)</button>
-          {showDone&&<button onClick={()=>{if(confirm("完了済みタスクを全て削除しますか？"))clearDone()}} style={{fontSize:11,color:"#C62828",background:"none",border:"none",cursor:"pointer",fontWeight:600}}>全て削除</button>}
+          {showDone&&<button onClick={()=>{if(confirm("完了済みタスクを全てアーカイブしますか？"))done.forEach(t=>!t.source&&archive(t.id))}} style={{fontSize:11,color:"#1976D2",background:"none",border:"none",cursor:"pointer",fontWeight:600}}>全てアーカイブ</button>}
         </div>
-        {showDone&&<div>{done.map(t=><div key={t.id} style={{background:"#FAFAFA",borderRadius:10,padding:"10px 14px",marginBottom:6,border:"1px solid #F0F0F0",display:"flex",alignItems:"center",gap:10}}>
+        {showDone&&<div>{done.map(t=>{const isV=!!t.source;return <div key={t.id} style={{background:"#FAFAFA",borderRadius:10,padding:"10px 14px",marginBottom:6,border:"1px solid #F0F0F0",display:"flex",alignItems:"center",gap:10}}>
           <button onClick={()=>toggle(t.id)} style={{width:22,height:22,borderRadius:"50%",border:"2px solid #4CAF50",background:"#4CAF50",cursor:"pointer",flexShrink:0,padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{color:"#fff",fontSize:13,fontWeight:700}}>✓</span></button>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:13,color:"#90A4AE",textDecoration:"line-through"}}>{t.title}</div>
             {t.completedAt&&<div style={{fontSize:10,color:"#B0BEC5",marginTop:2}}>完了 {fd(t.completedAt)}</div>}
           </div>
-          <button onClick={()=>del(t.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:14}}>✕</button>
+          {!isV&&<button onClick={()=>archive(t.id)} title="アーカイブ" style={{background:"none",border:"1px solid #CFD8DC",borderRadius:6,cursor:"pointer",color:"#546E7A",fontSize:10,fontWeight:600,padding:"4px 8px"}}>📦</button>}
+          {!isV&&<button onClick={()=>del(t.id)} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:14}}>✕</button>}
+        </div>})}</div>}
+      </div>}
+      {archived.length>0&&<div style={{marginTop:16,paddingTop:16,borderTop:"1px solid #ECEFF1"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <button onClick={()=>sShowArc(!showArc)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,color:"#78909C",display:"flex",alignItems:"center",gap:6,padding:0}}>{showArc?"▼":"▶"} 📦 アーカイブ ({archived.length}件)</button>
+          {showArc&&<button onClick={()=>{if(confirm("アーカイブを全て完全削除しますか？\nこの操作は取り消せません。"))sT(p=>p.filter(t=>!t.archived))}} style={{fontSize:11,color:"#C62828",background:"none",border:"none",cursor:"pointer",fontWeight:600}}>全て削除</button>}
+        </div>
+        {showArc&&<div>{archived.map(t=><div key={t.id} style={{background:"#F5F5F5",borderRadius:10,padding:"10px 14px",marginBottom:6,border:"1px solid #E0E0E0",display:"flex",alignItems:"center",gap:10}}>
+          <span style={{fontSize:14}}>📦</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,color:"#78909C"}}>{t.title}</div>
+            {t.archivedAt&&<div style={{fontSize:10,color:"#B0BEC5",marginTop:2}}>アーカイブ {fd(t.archivedAt)}</div>}
+          </div>
+          <button onClick={()=>unarchive(t.id)} title="戻す" style={{background:"#fff",border:"1px solid #90CAF9",borderRadius:6,cursor:"pointer",color:"#1976D2",fontSize:10,fontWeight:600,padding:"4px 8px"}}>↩ 戻す</button>
+          <button onClick={()=>{if(confirm("完全に削除しますか？"))del(t.id)}} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:14}}>✕</button>
         </div>)}</div>}
       </div>}</>}
       {view==="board"&&<div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:12,WebkitOverflowScrolling:"touch"}}>
-        {TCOLS.map(col=>{const colTasks=tasks.filter(t=>getCol(t)===col.k).sort((a,b)=>{const ad=a.deadline||"9999-12-31",bd=b.deadline||"9999-12-31";if(ad!==bd)return ad.localeCompare(bd);return(a.order||0)-(b.order||0)});return <div key={col.k} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move"}} onDrop={e=>{e.preventDefault();if(dragId)moveTo(dragId,col.k);sDragId(null)}} style={{flex:"0 0 280px",background:col.bg,borderRadius:14,padding:12,border:"1.5px solid "+col.hd,display:"flex",flexDirection:"column",maxHeight:"calc(100vh - 240px)"}}>
+        {TCOLS.map(col=>{const allBoard=[...tasks.filter(t=>!t.archived),...virtualTasks];const colTasks=allBoard.filter(t=>getCol(t)===col.k).sort((a,b)=>{const ad=a.deadline||"9999-12-31",bd=b.deadline||"9999-12-31";if(ad!==bd)return ad.localeCompare(bd);return(a.order||0)-(b.order||0)});return <div key={col.k} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move"}} onDrop={e=>{e.preventDefault();if(dragId)moveTo(dragId,col.k);sDragId(null)}} style={{flex:"0 0 280px",background:col.bg,borderRadius:14,padding:12,border:"1.5px solid "+col.hd,display:"flex",flexDirection:"column",maxHeight:"calc(100vh - 240px)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,paddingBottom:8,borderBottom:"2px solid "+col.hd}}>
             <span style={{fontSize:13,fontWeight:800,color:col.t}}>{col.l}</span>
             <span style={{fontSize:11,fontWeight:700,color:col.t,background:"rgba(255,255,255,.7)",padding:"2px 9px",borderRadius:10}}>{colTasks.length}</span>
           </div>
           <div style={{flex:1,overflowY:"auto",minHeight:30,marginRight:-4,paddingRight:4}}>
             {colTasks.length===0&&<div style={{fontSize:11,color:"#B0BEC5",textAlign:"center",padding:"16px 0"}}>タスクなし</div>}
-            {colTasks.map(t=>{const dy=dt(t.deadline);const urg=dy!==null&&dy<=0;const warn=dy!==null&&dy>0&&dy<=3;return <div key={t.id} draggable onDragStart={e=>{e.dataTransfer.effectAllowed="move";sDragId(t.id)}} onDragEnd={()=>sDragId(null)} onClick={()=>sExp(e=>({...e,[t.id]:!e[t.id]}))} style={{background:"#fff",borderRadius:10,padding:"10px 12px",marginBottom:8,cursor:"grab",border:urg?"1.5px solid #EF9A9A":warn?"1.5px solid #FFCC80":"1px solid "+col.hd,opacity:dragId===t.id?.4:1,boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
+            {colTasks.map(t=>{const dy=dt(t.deadline);const urg=dy!==null&&dy<=0;const warn=dy!==null&&dy>0&&dy<=3;const isV=!!t.source;return <div key={t.id} draggable={!isV} onDragStart={e=>{if(isV){e.preventDefault();return}e.dataTransfer.effectAllowed="move";sDragId(t.id)}} onDragEnd={()=>sDragId(null)} onClick={()=>sExp(e=>({...e,[t.id]:!e[t.id]}))} style={{background:"#fff",borderRadius:10,padding:"10px 12px",marginBottom:8,cursor:isV?"pointer":"grab",border:urg?"1.5px solid #EF9A9A":warn?"1.5px solid #FFCC80":"1px solid "+col.hd,opacity:dragId===t.id?.4:1,boxShadow:"0 1px 3px rgba(0,0,0,.05)"}}>
+              {isV&&<div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}><span style={{fontSize:9,fontWeight:700,padding:"2px 6px",borderRadius:6,background:t.sourceColor,color:"#fff"}}>{t.source}</span><span style={{fontSize:9,color:"#90A4AE",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{t.sourceName}</span></div>}
               <div style={{fontSize:13,fontWeight:600,color:"#1A2A3A",textDecoration:col.k===3?"line-through":"none",opacity:col.k===3?.6:1,wordBreak:"break-word"}}>{t.title}</div>
               {t.deadline&&<div style={{fontSize:11,color:urg?"#C62828":warn?"#E65100":"#78909C",fontWeight:600,marginTop:6,display:"flex",alignItems:"center",gap:6}}>📅 {fd(t.deadline)}<DB d={t.deadline}/></div>}
               {t.memo&&exp[t.id]&&<div style={{fontSize:11,color:"#546E7A",marginTop:6,whiteSpace:"pre-line",padding:"6px 8px",background:"#FAFAFA",borderRadius:6}}>{t.memo}</div>}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8,gap:4}}>
                 <div style={{display:"flex",gap:3}}>
-                  {col.k>0&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k-1)}} title="左へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>◀</button>}
-                  {col.k<3&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k+1)}} title="右へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>}
+                  {!isV&&col.k>0&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k-1)}} title="左へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>◀</button>}
+                  {!isV&&col.k<3&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k+1)}} title="右へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>}
+                  {isV&&col.k===0&&<button onClick={e=>{e.stopPropagation();toggleVirtual(t.id)}} title="完了してログに記録" style={{padding:"2px 8px",height:22,borderRadius:6,border:"1px solid #81C784",background:"#fff",fontSize:10,cursor:"pointer",color:"#1B5E20",fontWeight:700}}>✓ 完了</button>}
                 </div>
-                <button onClick={e=>{e.stopPropagation();if(confirm("削除しますか？"))del(t.id)}} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:12,padding:"2px 6px"}}>✕</button>
+                {!isV&&<button onClick={e=>{e.stopPropagation();if(confirm("削除しますか？"))del(t.id)}} style={{background:"none",border:"none",cursor:"pointer",color:"#B0BEC5",fontSize:12,padding:"2px 6px"}}>✕</button>}
               </div>
-              {exp[t.id]&&<div style={{marginTop:8,paddingTop:8,borderTop:"1px dashed "+col.hd}}>
+              {exp[t.id]&&!isV&&<div style={{marginTop:8,paddingTop:8,borderTop:"1px dashed "+col.hd}}>
                 <input style={{...is,fontSize:12,padding:"6px 10px",marginBottom:6}} value={t.title} onChange={e=>update(t.id,"title",e.target.value)} onClick={e=>e.stopPropagation()}/>
                 <input style={{...is,fontSize:12,padding:"6px 10px",marginBottom:6}} type="date" value={t.deadline||""} onChange={e=>update(t.id,"deadline",e.target.value)} onClick={e=>e.stopPropagation()}/>
                 <textarea style={{...is,fontSize:12,padding:"6px 10px",minHeight:40,resize:"vertical"}} value={t.memo||""} onChange={e=>update(t.id,"memo",e.target.value)} onClick={e=>e.stopPropagation()} placeholder="メモ"/>
