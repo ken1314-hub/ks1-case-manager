@@ -57,7 +57,7 @@ function Lb({label,children}){return <label style={{display:"block",marginBottom
 function SB({s}){const c=SC[s]||SC["検討中"];return <span style={{fontSize:11,fontWeight:600,color:c.t,background:c.bg,padding:"2px 10px",borderRadius:20,display:"inline-flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:"50%",background:c.d,display:"inline-block"}}/>{s}</span>}
 
 function CaseForm({init,onSave,onCancel,opts}){
-  const df={name:"",client:"",status:"検討中",assignee:"",deadline:"",shootType:"取材",shootDate:"",shootTime:"",publishDate:"",nextAction:"",nextActionDeadline:"",nextActionMemo:"",caseType:"取材編",amount:"",itoShare:"",itoManual:false,invoiceSubmitted:false,memo:"",actionLog:[]};
+  const df={name:"",client:"",status:"検討中",assignee:"",deadline:"",shootType:"取材",shootDate:"",shootTime:"",publishDate:"",nextAction:"",nextActionDeadline:"",nextActionMemo:"",caseType:"取材編",amount:"",itoShare:"",itoManual:false,invoiceSubmitted:false,link1:"",link1Label:"",link2:"",link2Label:"",memo:"",actionLog:[]};
   const[f,sF]=useState(init||df);
   useEffect(()=>{sF(init||df)},[init]);
   const s=(k,v)=>sF(p=>({...p,[k]:v}));
@@ -96,6 +96,19 @@ function CaseForm({init,onSave,onCancel,opts}){
       {f.nextAction&&<button onClick={completeNow} style={{padding:"8px 16px",borderRadius:10,border:"1.5px solid #4CAF50",background:"#E8F5E9",color:"#1B5E20",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:12}}>✓ このアクションを完了してログに記録</button>}
     </div>
     {f.actionLog&&f.actionLog.length>0&&<div style={{background:"#F5F5F5",borderRadius:12,padding:"16px 16px 8px",marginBottom:16,border:"1px solid #E0E0E0"}}><div style={{fontSize:12,fontWeight:700,color:"#546E7A",marginBottom:10}}>完了したアクション ({f.actionLog.length}件)</div>{f.actionLog.slice().reverse().map((log,i)=><div key={i} style={{padding:"8px 12px",background:"#fff",borderRadius:8,marginBottom:6,border:"1px solid #ECEFF1"}}><div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"space-between"}}><span style={{fontSize:13,fontWeight:600,color:"#37474F"}}><span style={{color:"#4CAF50",marginRight:4}}>✓</span>{log.action}</span><span style={{fontSize:10,color:"#B0BEC5",whiteSpace:"nowrap"}}>{fd(log.completedAt)}</span></div>{log.memo&&<div style={{fontSize:11,color:"#90A4AE",marginTop:2}}>{log.memo}</div>}</div>)}</div>}
+    <div style={{background:"#F5F5F5",borderRadius:12,padding:"14px 16px 6px",marginBottom:14,border:"1px solid #E0E0E0"}}>
+      <div style={{fontSize:13,fontWeight:700,color:"#546E7A",marginBottom:10}}>🔗 関連リンク</div>
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <input style={{...is,flex:"0 0 130px"}} value={f.link1Label||""} onChange={e=>s("link1Label",e.target.value)} placeholder="ラベル1"/>
+        <input style={{...is,flex:1}} value={f.link1||""} onChange={e=>s("link1",e.target.value)} placeholder="https://..."/>
+        {f.link1&&<a href={f.link1} target="_blank" rel="noopener noreferrer" style={{padding:"10px 14px",borderRadius:10,background:"#1976D2",color:"#fff",fontSize:13,fontWeight:600,textDecoration:"none",whiteSpace:"nowrap"}}>開く</a>}
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:10}}>
+        <input style={{...is,flex:"0 0 130px"}} value={f.link2Label||""} onChange={e=>s("link2Label",e.target.value)} placeholder="ラベル2"/>
+        <input style={{...is,flex:1}} value={f.link2||""} onChange={e=>s("link2",e.target.value)} placeholder="https://..."/>
+        {f.link2&&<a href={f.link2} target="_blank" rel="noopener noreferrer" style={{padding:"10px 14px",borderRadius:10,background:"#1976D2",color:"#fff",fontSize:13,fontWeight:600,textDecoration:"none",whiteSpace:"nowrap"}}>開く</a>}
+      </div>
+    </div>
     <Lb label="メモ"><textarea style={{...is,minHeight:70,resize:"vertical"}} value={f.memo} onChange={e=>s("memo",e.target.value)} placeholder="備考"/></Lb>
     <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:8}}>
       <button onClick={onCancel} style={{padding:"10px 22px",borderRadius:10,border:"1.5px solid #CFD8DC",background:"#fff",fontSize:14,cursor:"pointer",color:"#546E7A"}}>キャンセル</button>
@@ -132,7 +145,7 @@ function CC({c,onEdit,onDel,onDragStart,onDrop,onDragEnd,isDragging,dragOver,onC
 }
 
 function SemForm({init,onSave,onCancel}){
-  const df={name:"",client:"",status:"検討中",eventDate:"",eventTime:"",venue:"",amount:"",invoiceSubmitted:false,nextAction:"",nextActionDeadline:"",nextActionMemo:"",memo:"",actionLog:[]};
+  const df={name:"",client:"",status:"検討中",eventDate:"",eventTime:"",venue:"",amount:"",invoiceSubmitted:false,nextAction:"",nextActionDeadline:"",nextActionMemo:"",link1:"",link1Label:"",link2:"",link2Label:"",memo:"",actionLog:[]};
   const[f,sF]=useState(init||df);
   useEffect(()=>{sF(init||df)},[init]);
   const s=(k,v)=>sF(p=>({...p,[k]:v}));
@@ -163,6 +176,19 @@ function SemForm({init,onSave,onCancel}){
       {f.nextAction&&<button onClick={completeNow} style={{padding:"8px 16px",borderRadius:10,border:"1.5px solid #4CAF50",background:"#E8F5E9",color:"#1B5E20",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:12}}>✓ このアクションを完了してログに記録</button>}
     </div>
     {f.actionLog&&f.actionLog.length>0&&<div style={{background:"#F5F5F5",borderRadius:12,padding:"16px 16px 8px",marginBottom:16,border:"1px solid #E0E0E0"}}><div style={{fontSize:12,fontWeight:700,color:"#546E7A",marginBottom:10}}>完了したアクション ({f.actionLog.length}件)</div>{f.actionLog.slice().reverse().map((log,i)=><div key={i} style={{padding:"8px 12px",background:"#fff",borderRadius:8,marginBottom:6,border:"1px solid #ECEFF1"}}><div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"space-between"}}><span style={{fontSize:13,fontWeight:600,color:"#37474F"}}><span style={{color:"#4CAF50",marginRight:4}}>✓</span>{log.action}</span><span style={{fontSize:10,color:"#B0BEC5",whiteSpace:"nowrap"}}>{fd(log.completedAt)}</span></div>{log.memo&&<div style={{fontSize:11,color:"#90A4AE",marginTop:2}}>{log.memo}</div>}</div>)}</div>}
+    <div style={{background:"#F5F5F5",borderRadius:12,padding:"14px 16px 6px",marginBottom:14,border:"1px solid #E0E0E0"}}>
+      <div style={{fontSize:13,fontWeight:700,color:"#546E7A",marginBottom:10}}>🔗 関連リンク</div>
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <input style={{...is,flex:"0 0 130px"}} value={f.link1Label||""} onChange={e=>s("link1Label",e.target.value)} placeholder="ラベル1"/>
+        <input style={{...is,flex:1}} value={f.link1||""} onChange={e=>s("link1",e.target.value)} placeholder="https://..."/>
+        {f.link1&&<a href={f.link1} target="_blank" rel="noopener noreferrer" style={{padding:"10px 14px",borderRadius:10,background:"#4527A0",color:"#fff",fontSize:13,fontWeight:600,textDecoration:"none",whiteSpace:"nowrap"}}>開く</a>}
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:10}}>
+        <input style={{...is,flex:"0 0 130px"}} value={f.link2Label||""} onChange={e=>s("link2Label",e.target.value)} placeholder="ラベル2"/>
+        <input style={{...is,flex:1}} value={f.link2||""} onChange={e=>s("link2",e.target.value)} placeholder="https://..."/>
+        {f.link2&&<a href={f.link2} target="_blank" rel="noopener noreferrer" style={{padding:"10px 14px",borderRadius:10,background:"#4527A0",color:"#fff",fontSize:13,fontWeight:600,textDecoration:"none",whiteSpace:"nowrap"}}>開く</a>}
+      </div>
+    </div>
     <Lb label="メモ"><textarea style={{...is,minHeight:70,resize:"vertical"}} value={f.memo} onChange={e=>s("memo",e.target.value)} placeholder="備考"/></Lb>
     <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:8}}>
       <button onClick={onCancel} style={{padding:"10px 22px",borderRadius:10,border:"1.5px solid #CFD8DC",background:"#fff",fontSize:14,cursor:"pointer",color:"#546E7A"}}>キャンセル</button>
