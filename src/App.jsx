@@ -545,6 +545,7 @@ function TaskMod(){
   const qAdd=col=>{if(!qc.val.trim())return;const isCat=boardMode==="category";sT(p=>[...p,{id:uid(),title:qc.val.trim(),deadline:qc.deadline,memo:"",done:isCat?false:col===3,column:isCat?0:col,category:isCat?col:newCat,createdAt:new Date().toISOString(),order:p.length,...(!isCat&&col===3?{completedAt:new Date().toISOString()}:{})}]);sQc({col,val:"",deadline:""})};
   const update=(id,k,v)=>{if(id.startsWith("case:")||id.startsWith("sem:"))return;sT(p=>p.map(t=>t.id===id?{...t,[k]:v}:t))};
   const del=id=>{if(id.startsWith("case:")||id.startsWith("sem:"))return;sT(p=>p.filter(t=>t.id!==id))};
+  const reorder=(id,dir,siblings)=>{const idx=siblings.findIndex(t=>t.id===id);if(idx<0)return;const j=idx+dir;if(j<0||j>=siblings.length)return;const ids=siblings.map(t=>t.id);[ids[idx],ids[j]]=[ids[j],ids[idx]];const posMap={};ids.forEach((tid,i)=>posMap[tid]=i);sT(p=>p.map(t=>posMap[t.id]!=null?{...t,manualPos:posMap[t.id]}:t))};
   const archive=id=>sT(p=>p.map(t=>t.id===id?{...t,archived:true,archivedAt:new Date().toISOString()}:t));
   const unarchive=id=>sT(p=>p.map(t=>t.id===id?{...t,archived:false,archivedAt:null}:t));
   const clearDone=()=>sT(p=>p.filter(t=>!t.done||t.archived));
@@ -556,7 +557,8 @@ function TaskMod(){
   const active=allTasks.filter(t=>!t.done);
   const done=allTasks.filter(t=>t.done).sort((a,b)=>(b.completedAt||"").localeCompare(a.completedAt||""));
   const archived=tasks.filter(t=>t.archived).sort((a,b)=>(b.archivedAt||"").localeCompare(a.archivedAt||""));
-  const filtered=active.filter(t=>{if(filter==="today"){const dy=dt(t.deadline);return dy!==null&&dy<=0}if(filter==="week"){const dy=dt(t.deadline);return dy!==null&&dy<=7}if(filter==="nodate")return !t.deadline;return true}).sort((a,b)=>{const ad=a.deadline||"9999-12-31",bd=b.deadline||"9999-12-31";if(ad!==bd)return ad.localeCompare(bd);return(a.order||0)-(b.order||0)});
+  const sortTasks=(a,b)=>{const ma=a.manualPos!=null?a.manualPos:99999,mb=b.manualPos!=null?b.manualPos:99999;if(ma!==mb)return ma-mb;const ad=a.deadline||"9999-12-31",bd=b.deadline||"9999-12-31";if(ad!==bd)return ad.localeCompare(bd);return(a.order||0)-(b.order||0)};
+  const filtered=active.filter(t=>{if(filter==="today"){const dy=dt(t.deadline);return dy!==null&&dy<=0}if(filter==="week"){const dy=dt(t.deadline);return dy!==null&&dy<=7}if(filter==="nodate")return !t.deadline;return true}).sort(sortTasks);
   const cnt={all:active.length,today:active.filter(t=>{const dy=dt(t.deadline);return dy!==null&&dy<=0}).length,week:active.filter(t=>{const dy=dt(t.deadline);return dy!==null&&dy<=7}).length,nodate:active.filter(t=>!t.deadline).length};
   if(!ok)return <div style={{textAlign:"center",padding:60,color:"#90A4AE"}}>読み込み中…</div>;
   return <>
@@ -641,7 +643,7 @@ function TaskMod(){
         {[{k:"status",l:"ステータス別"},{k:"category",l:"カテゴリ別"}].map(m=><button key={m.k} onClick={()=>{sBoardMode(m.k);sQc({col:null,val:"",deadline:""})}} style={{padding:"6px 14px",borderRadius:20,border:boardMode===m.k?"none":"1.5px solid #E0E6EB",background:boardMode===m.k?"#546E7A":"#fff",color:boardMode===m.k?"#fff":"#78909C",fontSize:11,fontWeight:700,cursor:"pointer"}}>{m.l}</button>)}
       </div>
       <div style={{display:"flex",gap:12,overflowX:"auto",paddingBottom:12,WebkitOverflowScrolling:"touch"}}>
-        {(boardMode==="category"?CCOLS:TCOLS).map(col=>{const allBoard=[...tasks.filter(t=>!t.archived),...virtualTasks];const colTasks=allBoard.filter(t=>boardMode==="category"?getCat(t)===col.k:getCol(t)===col.k).sort((a,b)=>{const ad=a.deadline||"9999-12-31",bd=b.deadline||"9999-12-31";if(ad!==bd)return ad.localeCompare(bd);return(a.order||0)-(b.order||0)});return <div key={col.k} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move"}} onDrop={e=>{e.preventDefault();if(dragId){if(boardMode==="category")moveToCat(dragId,col.k);else moveTo(dragId,col.k)}sDragId(null)}} style={{flex:"0 0 280px",background:col.bg,borderRadius:14,padding:12,border:"1.5px solid "+col.hd,display:"flex",flexDirection:"column",maxHeight:"calc(100vh - 240px)"}}>
+        {(boardMode==="category"?CCOLS:TCOLS).map(col=>{const allBoard=[...tasks.filter(t=>!t.archived),...virtualTasks];const colTasks=allBoard.filter(t=>boardMode==="category"?getCat(t)===col.k:getCol(t)===col.k).sort(sortTasks);return <div key={col.k} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="move"}} onDrop={e=>{e.preventDefault();if(dragId){if(boardMode==="category")moveToCat(dragId,col.k);else moveTo(dragId,col.k)}sDragId(null)}} style={{flex:"0 0 280px",background:col.bg,borderRadius:14,padding:12,border:"1.5px solid "+col.hd,display:"flex",flexDirection:"column",maxHeight:"calc(100vh - 240px)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,paddingBottom:8,borderBottom:"2px solid "+col.hd}}>
             <span style={{fontSize:13,fontWeight:800,color:col.t}}>{col.l}</span>
             <span style={{fontSize:11,fontWeight:700,color:col.t,background:"rgba(255,255,255,.7)",padding:"2px 9px",borderRadius:10}}>{colTasks.length}</span>
@@ -654,7 +656,9 @@ function TaskMod(){
               {t.deadline&&<div style={{fontSize:11,color:urg?"#C62828":warn?"#E65100":"#78909C",fontWeight:600,marginTop:6,display:"flex",alignItems:"center",gap:6}}>📅 {fd(t.deadline)}<DB d={t.deadline}/></div>}
               {t.memo&&exp[t.id]&&<div style={{fontSize:11,color:"#546E7A",marginTop:6,whiteSpace:"pre-line",padding:"6px 8px",background:"#FAFAFA",borderRadius:6}}>{t.memo}</div>}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8,gap:4}}>
-                <div style={{display:"flex",gap:3}}>
+                <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+                  {!isV&&<button onClick={e=>{e.stopPropagation();reorder(t.id,-1,colTasks)}} title="上へ" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▲</button>}
+                  {!isV&&<button onClick={e=>{e.stopPropagation();reorder(t.id,1,colTasks)}} title="下へ" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▼</button>}
                   {!isV&&boardMode==="status"&&col.k>0&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k-1)}} title="左へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>◀</button>}
                   {!isV&&boardMode==="status"&&col.k<3&&<button onClick={e=>{e.stopPropagation();moveTo(t.id,col.k+1)}} title="右へ移動" style={{width:24,height:22,borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",fontSize:11,cursor:"pointer",color:"#546E7A",padding:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>}
                   {!isV&&boardMode==="category"&&<select onClick={e=>e.stopPropagation()} onChange={e=>moveToCat(t.id,e.target.value)} value={getCat(t)} style={{fontSize:10,padding:"2px 4px",borderRadius:6,border:"1px solid #CFD8DC",background:"#fff",color:"#546E7A",cursor:"pointer",height:22}}>{CCOLS.map(c=><option key={c.k} value={c.k}>{c.k}</option>)}</select>}
@@ -665,6 +669,7 @@ function TaskMod(){
               {exp[t.id]&&!isV&&<div style={{marginTop:8,paddingTop:8,borderTop:"1px dashed "+col.hd}}>
                 <input style={{...is,fontSize:12,padding:"6px 10px",marginBottom:6}} value={t.title} onChange={e=>update(t.id,"title",e.target.value)} onClick={e=>e.stopPropagation()}/>
                 <input style={{...is,fontSize:12,padding:"6px 10px",marginBottom:6}} type="date" value={t.deadline||""} onChange={e=>update(t.id,"deadline",e.target.value)} onClick={e=>e.stopPropagation()}/>
+                <input style={{...is,fontSize:12,padding:"6px 10px",marginBottom:6}} type="number" min="1" max="31" value={t.recurDay||""} onChange={e=>{const v=e.target.value?parseInt(e.target.value):null;update(t.id,"recurDay",v&&v>=1&&v<=31?v:null)}} onClick={e=>e.stopPropagation()} placeholder="🔄 毎月X日に繰り返し"/>
                 <textarea style={{...is,fontSize:12,padding:"6px 10px",minHeight:40,resize:"vertical"}} value={t.memo||""} onChange={e=>update(t.id,"memo",e.target.value)} onClick={e=>e.stopPropagation()} placeholder="メモ"/>
               </div>}
             </div>})}
