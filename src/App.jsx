@@ -674,6 +674,7 @@ function TaskMod(){
                 <textarea style={{...is,fontSize:12,padding:"6px 10px",minHeight:40,resize:"vertical"}} value={t.memo||""} onChange={e=>update(t.id,"memo",e.target.value)} onClick={e=>e.stopPropagation()} placeholder="メモ"/>
               </div>}
             </div>})}
+            {dragId&&!dragId.startsWith("case:")&&!dragId.startsWith("sem:")&&<div onDragOver={colOver} onDrop={colDrop} style={{marginTop:4,padding:"16px 8px",borderRadius:10,border:"2px dashed "+col.t,background:"rgba(255,255,255,.6)",textAlign:"center",fontSize:11,fontWeight:700,color:col.t,pointerEvents:"auto"}}>📥 ここにドロップで「{col.l.replace(/^[^\s]+\s/,"")}」へ</div>}
           </div>
           <div style={{marginTop:8,flexShrink:0}}>
             {qc.col===col.k?<div>
